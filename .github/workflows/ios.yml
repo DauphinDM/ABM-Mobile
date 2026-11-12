@@ -22,8 +22,11 @@ jobs:
           test -f "$RUNNER_TEMP/abm-ios-command-ok"
       - name: Package simulator app (not an installable iPhone IPA)
         run: |
+          app=build/ios/Build/Products/Debug-iphonesimulator/ABMMobile.app
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")" = 0.1.0
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")" = 1
           mkdir -p dist
-          ditto -c -k --keepParent build/ios/Build/Products/Debug-iphonesimulator/ABMMobile.app dist/ABM-Mobile-0.1.0-iOS-Simulator.zip
+          ditto -c -k --keepParent "$app" dist/ABM-Mobile-0.1.0-iOS-Simulator.zip
           cd dist
           shasum -a 256 ABM-Mobile-0.1.0-iOS-Simulator.zip > SHA256SUMS-ios
       - name: Export simulator screenshots

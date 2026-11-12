@@ -19,6 +19,8 @@ targets:
       path: Generated/Info.plist
       properties:
         CFBundleDisplayName: ABM Mobile
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         UILaunchScreen: {}
         NSLocalNetworkUsageDescription: Connect to your PC ABM on private Wi-Fi to display game telemetry and send commands you approve.
         UIApplicationSupportsIndirectInputEvents: YES
