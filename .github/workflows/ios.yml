@@ -7,6 +7,7 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
+      - run: python3 tests/ios_packaging_test.py
       - run: brew install xcodegen
       - name: Build unsigned arm64 iPhone app
         run: |
@@ -17,20 +18,26 @@ jobs:
         run: |
           app=build/ios-device/Build/Products/Release-iphoneos/ABMMobile.app
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")" = 0.1.0
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")" = 1
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")" = 2
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleSupportedPlatforms:0' "$app/Info.plist")" = iPhoneOS
           lipo "$app/ABMMobile" -verify_arch arm64
+          # Exercise re-signing and verify bundle integrity without Apple credentials.
+          # This ad-hoc signature is NOT an installable Apple provisioning identity.
+          codesign --force --sign - --timestamp=none --generate-entitlement-der "$app"
+          codesign --verify --strict --verbose=2 "$app"
           mkdir -p build/ios-device-package/Payload dist
           ditto "$app" build/ios-device-package/Payload/ABMMobile.app
           cd build/ios-device-package
-          ditto -c -k --keepParent Payload "$GITHUB_WORKSPACE/dist/ABM-Mobile-0.1.0-iOS-arm64-unsigned.ipa"
+          ditto -c -k --keepParent Payload "$GITHUB_WORKSPACE/dist/ABM-Mobile-0.1.0-iOS-arm64-unsigned-build2.ipa"
+          cd "$GITHUB_WORKSPACE"
+          python3 tests/verify_ios_ipa.py dist/ABM-Mobile-0.1.0-iOS-arm64-unsigned-build2.ipa
           cd "$GITHUB_WORKSPACE/dist"
-          shasum -a 256 ABM-Mobile-0.1.0-iOS-arm64-unsigned.ipa > SHA256SUMS-ipa
+          shasum -a 256 ABM-Mobile-0.1.0-iOS-arm64-unsigned-build2.ipa > SHA256SUMS-ipa
       - uses: actions/upload-artifact@v4
         with:
           name: ABM-Mobile-iOS-Unsigned-IPA
           path: |
-            dist/ABM-Mobile-0.1.0-iOS-arm64-unsigned.ipa
+            dist/ABM-Mobile-0.1.0-iOS-arm64-unsigned-build2.ipa
             dist/SHA256SUMS-ipa
           if-no-files-found: error
   simulator:
@@ -54,7 +61,7 @@ jobs:
         run: |
           app=build/ios/Build/Products/Debug-iphonesimulator/ABMMobile.app
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")" = 0.1.0
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")" = 1
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")" = 2
           mkdir -p dist
           ditto -c -k --keepParent "$app" dist/ABM-Mobile-0.1.0-iOS-Simulator.zip
           cd dist

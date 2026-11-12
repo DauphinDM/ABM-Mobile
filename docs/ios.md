@@ -44,7 +44,13 @@ For a physical iPhone, select your signing team in Xcode and a unique bundle ide
 
 ## Test on your iPhone using the unsigned IPA
 
-The **Native iOS** workflow also builds a Release **iPhoneOS arm64** app, packaged as `ABM-Mobile-0.1.0-iOS-arm64-unsigned.ipa` inside the `ABM-Mobile-iOS-Unsigned-IPA` artifact. This is a device binary, not a renamed simulator build. Verify it using the accompanying `SHA256SUMS-ipa`.
+The **Native iOS** workflow also builds a Release **iPhoneOS arm64** app, packaged as `ABM-Mobile-0.1.0-iOS-arm64-unsigned-build2.ipa` inside the `ABM-Mobile-iOS-Unsigned-IPA` artifact. This is a device binary, not a renamed simulator build. Verify it using the accompanying `SHA256SUMS-ipa`.
+
+Build 2 adds the PC ABM icon as a complete iPhone/iPad asset catalog, generated icon metadata and a temporary ad-hoc signature. CI exercises `codesign` re-signing/strict verification and checks the packaged device platform, executable, icons, permissions and metadata. The ad-hoc signature is only a re-signing scaffold, **not** an Apple certificate/provisioning identity. A physical installation still requires your own valid signing configuration.
+
+The original build passed signing and packaging in ESign 5.0.2, but a tester reported its Install button did nothing. The missing icon resources are corrected here; there is no confirmed root cause for ESign's handoff yet. Build/ZIP validation does not establish ESign or physical-device compatibility. Keep the minimum OS at 26.0 when re-signing, rather than overriding it to an older version. No certificate, private key or provisioning profile should be sent to us. If installation still fails, export the signed IPA for local installation diagnostics or use Xcode/device logs to distinguish signing/profile errors from an installer handoff failure.
+
+The IPA is intentionally small: SwiftUI, Network and other Apple frameworks come from iOS. The original roughly 210 KB ZIP contained a roughly 1.07 MB executable; it did not contain Qt, game assets or a bundled game engine. Icons can be regenerated with `python3 bin/generate-ios-icons` (ImageMagick required); the committed PNGs avoid a build-time graphics-tool dependency.
 
 The IPA is **unsigned and cannot be installed directly**. Re-sign/install it on your own iOS 26+ device using a trusted tool such as AltStore or Sideloadly, or build/sign the source with Xcode. Follow that tool's Apple-account, provisioning and Developer Mode instructions. Free provisioning can have expiry and app-count limits. Keep your Apple credentials and signing material local; do not send them to us or commit them. No signing service, TestFlight or App Store distribution is configured here.
 
