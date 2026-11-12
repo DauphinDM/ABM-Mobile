@@ -1,20 +1,38 @@
 #!/bin/sh
 set -eu
 ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
-PIN=b71f1470962019bd89534a2919f5925f93bc5779
-DEST="$ROOT/vendor/android_openssl"
-if [ ! -d "$DEST" ]; then
-    mkdir -p "$DEST"
-    git -C "$DEST" init
-    git -C "$DEST" remote add origin https://github.com/KDAB/android_openssl.git
-    git -C "$DEST" fetch --depth 1 origin "$PIN"
-    git -C "$DEST" checkout --detach FETCH_HEAD
-fi
-test "$(git -C "$DEST" rev-parse HEAD)" = "$PIN"
-mkdir -p "$ROOT/android/assets/notices"
+VERSION=3.5.9
+SHA256=603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a
+DEST="$ROOT/vendor/openssl-$VERSION"
+: "${ANDROID_NDK_ROOT:?Set ANDROID_NDK_ROOT to Android NDK 26.1.10909125}"
+export PATH="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/linux-x86_64/bin:$PATH"
+mkdir -p "$DEST" "$ROOT/android/assets/notices"
+cd "$DEST"
+curl --fail --location --retry 3 "https://github.com/openssl/openssl/releases/download/openssl-$VERSION/openssl-$VERSION.tar.gz" -o source.tar.gz
+printf '%s  source.tar.gz\n' "$SHA256" | sha256sum -c -
+tar -xzf source.tar.gz
+cd "openssl-$VERSION"
+# Android Qt expects suffixed library names but ordinary OpenSSL symbol versions.
+# Fail if the pinned source layout changes instead of silently missing the patch.
+python3 - <<'PY'
+from pathlib import Path
+p = Path('Configurations/15-android.conf')
+s = p.read_text()
+needle = 'shared_extension => ".so",'
+assert s.count(needle) == 1
+p.write_text(s.replace(needle, needle + '\n        shlib_variant => "_3",'))
+p = Path('util/mkdef.pl')
+s = p.read_text()
+assert s.count('OPENSSL${SO_VARIANT}_') == 2
+p.write_text(s.replace('OPENSSL${SO_VARIANT}_', 'OPENSSL_'))
+PY
+./Configure android-arm64 shared no-tests -D__ANDROID_API__=28 -Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384
+make -j4 SHLIB_VERSION_NUMBER= build_libs
+mkdir -p "$ROOT/vendor/openssl/arm64-v8a"
+cp libcrypto_3.so libssl_3.so "$ROOT/vendor/openssl/arm64-v8a/"
+llvm-strip --strip-unneeded "$ROOT/vendor/openssl/arm64-v8a/"*.so
+cp LICENSE.txt "$ROOT/android/assets/notices/OpenSSL.txt"
 cp "$ROOT/LICENSE" "$ROOT/android/assets/notices/ABM-Mobile-MIT.txt"
-cp "$DEST/LICENSE" "$ROOT/android/assets/notices/KDAB-android-openssl.txt"
-curl --fail --location https://raw.githubusercontent.com/openssl/openssl/openssl-3.6.0/LICENSE.txt -o "$ROOT/android/assets/notices/OpenSSL.txt"
 for license in LGPL-3.0-only GPL-3.0-only; do
-    curl --fail --location "https://raw.githubusercontent.com/qt/qtbase/v6.8.3/LICENSES/$license.txt" -o "$ROOT/android/assets/notices/$license.txt"
+    curl --fail --location --retry 3 "https://raw.githubusercontent.com/qt/qtbase/v6.8.3/LICENSES/$license.txt" -o "$ROOT/android/assets/notices/$license.txt"
 done

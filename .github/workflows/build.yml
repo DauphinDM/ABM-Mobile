@@ -35,7 +35,7 @@ jobs:
           extra: --autodesktop
           cache: true
       - name: Fetch pinned Android TLS libraries and license notices
-        run: ./bin/fetch-android-openssl
+        run: ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/26.1.10909125" ./bin/fetch-android-openssl
       - name: Build development APK
         env:
           QT_ANDROID: ${{ steps.qt.outputs.qt-root-dir }}
@@ -45,7 +45,8 @@ jobs:
           cd build
           "$QT_ANDROID/bin/qmake" ../abm-mobile.pro CONFIG+=release CONFIG-=debug
           make -j4
-          "$QT_ANDROID/bin/androiddeployqt" --input android-abm-mobile-deployment-settings.json --output android-build --android-platform android-35 --gradle
+          make INSTALL_ROOT="$PWD/android-build" install
+          "$QT_HOST_PATH/bin/androiddeployqt" --input android-abm-mobile-deployment-settings.json --output android-build --android-platform android-35 --gradle
           mkdir -p ../dist
           cp android-build/build/outputs/apk/debug/*.apk ../dist/ABM-Mobile-0.1.0-Android-arm64-debug.apk
           cd ../dist

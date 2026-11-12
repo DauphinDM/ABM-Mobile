@@ -42,7 +42,7 @@ Tests use a local synthetic TLS server, check pin rejection before secret transm
 
 The GitHub Actions workflow also builds an **arm64 Android development APK** using Qt 6.8.3, Android API 35, NDK 26.1 and Java 17. The debug-signed APK and `SHA256SUMS` are workflow artifacts, not a Play Store release or a stable signing identity. Requires Android 9/API 28 or newer. Extract the artifact and install the APK manually only on a device you choose; CI does not install anything on your phone.
 
-Android builds first run `bin/fetch-android-openssl`. It downloads a pinned KDAB OpenSSL distribution and license notices; see [third-party notices](docs/THIRD-PARTY.md). Do not commit `vendor/`, build output, pairing links, private certificates or personal telemetry.
+Android builds first run `bin/fetch-android-openssl` with `ANDROID_NDK_ROOT` set. It verifies the OpenSSL 3.5.9 LTS source archive checksum, builds arm64 TLS libraries and fetches license notices; see [third-party notices](docs/THIRD-PARTY.md). Do not commit `vendor/`, build output, pairing links, private certificates or personal telemetry.
 
 ## Design and security
 
