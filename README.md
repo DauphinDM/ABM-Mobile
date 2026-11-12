@@ -48,7 +48,7 @@ Android builds first run `bin/fetch-android-openssl` with `ANDROID_NDK_ROOT` set
 
 ### Native iOS
 
-The independent `ios/` app requires **iOS 26+**, Xcode 26+ on macOS and XcodeGen. It uses SwiftUI, Network.framework, Security and CryptoKit, not Qt/OpenSSL. See [iOS build and design notes](docs/ios.md). The iOS workflow builds/tests on an iPhone simulator and archives the simulator app plus XCTest results. Installing on a physical iPhone requires your own Apple signing configuration; no Apple account, signing key or distribution identity is included.
+The independent `ios/` app requires **iOS 26+**, Xcode 26+ on macOS and XcodeGen. It uses SwiftUI, Network.framework, Security and CryptoKit, not Qt/OpenSSL. See [iOS build and design notes](docs/ios.md). The iOS workflow builds/tests on an iPhone simulator and archives the simulator app plus XCTest results. It also provides an **unsigned arm64 device IPA** in the `ABM-Mobile-iOS-Unsigned-IPA` artifact for [user-side signing and connectivity testing](docs/ios.md#test-on-your-iphone-using-the-unsigned-ipa). Installing on a physical iPhone requires your own Apple signing configuration; no Apple account, signing key or distribution identity is included.
 
 ## Design and security
 
