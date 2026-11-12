@@ -8,3 +8,4 @@
 ios/*.xcodeproj/
 ios/Generated/
 ios/ABMMobileUITests/Resources/TestConfig.json
+__pycache__/

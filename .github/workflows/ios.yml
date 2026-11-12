@@ -25,6 +25,12 @@ jobs:
           ditto -c -k --keepParent build/ios/Build/Products/Debug-iphonesimulator/ABMMobile.app dist/ABM-Mobile-0.1.0-iOS-Simulator.zip
           cd dist
           shasum -a 256 ABM-Mobile-0.1.0-iOS-Simulator.zip > SHA256SUMS-ios
+      - name: Export simulator screenshots
+        if: always()
+        run: |
+          if test -d build/ios-tests.xcresult; then
+            xcrun xcresulttool export attachments --path build/ios-tests.xcresult --output-path build/ios-screenshots
+          fi
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -32,6 +38,7 @@ jobs:
           path: |
             dist/*
             build/ios-tests.xcresult
+            build/ios-screenshots
           if-no-files-found: warn
       - name: Stop fixture
         if: always()
