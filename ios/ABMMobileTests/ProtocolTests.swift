@@ -1,6 +1,7 @@
 import XCTest
 import CryptoKit
 import Network
+import Security
 @testable import ABMMobile
 
 final class ProtocolTests: XCTestCase {
@@ -101,7 +102,8 @@ final class ProtocolTests: XCTestCase {
         defer { _ = RememberedPC.forget(account: account) }
         let pc = RememberedPC(host: "192.168.1.20", port: 44445, pin: String(repeating: "a", count: 64), id: String(repeating: "b", count: 32), token: String(repeating: "c", count: 64), name: "Test phone")
         XCTAssertNil(RememberedPC.load(account: account))
-        XCTAssertTrue(pc.save(account: account))
+        let status = pc.saveStatus(account: account)
+        XCTAssertEqual(status, errSecSuccess, "Keychain write failed: \(status), \(SecCopyErrorMessageString(status, nil) as String? ?? "unknown")")
         XCTAssertEqual(RememberedPC.load(account: account)?.token, pc.token)
         XCTAssertTrue(RememberedPC.forget(account: account))
         XCTAssertNil(RememberedPC.load(account: account))

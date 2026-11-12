@@ -55,7 +55,9 @@ jobs:
         run: |
           cd ios
           xcodegen generate
-          xcodebuild test -project ABMMobile.xcodeproj -scheme ABMMobile -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ../build/ios -resultBundlePath ../build/ios-tests.xcresult CODE_SIGNING_ALLOWED=NO
+          # Ad-hoc simulator identity permits real Keychain tests without Apple credentials.
+          # Simulator.entitlements is SDK-scoped and is never used for the device IPA.
+          xcodebuild test -project ABMMobile.xcodeproj -scheme ABMMobile -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ../build/ios -resultBundlePath ../build/ios-tests.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY="-"
           test -f "$RUNNER_TEMP/abm-ios-command-ok"
       - name: Package simulator app (not an installable iPhone IPA)
         run: |

@@ -35,10 +35,10 @@ python3 tests/ios_tls_fixture.py &
 cd ios
 xcodegen generate
 xcodebuild test -project ABMMobile.xcodeproj -scheme ABMMobile \
-  -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGNING_ALLOWED=NO
+  -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY="-"
 ```
 
-Stop the fixture afterward. It uses only loopback and ephemeral credentials, never a game. UI integration checks pinned TLS/approval, Garage photo delivery, exact spawn, direct power/repair, keyboard Done and stale disconnection. The fixture verifies command order, sequence and frozen target before marking success. Unit tests cover protocol/policy/empty-map gates, isolated Keychain revocation and loopback USB forwarding. CI retains `.xcresult`; simulator tests are not physical-device or live-game certification.
+Stop the fixture afterward. It uses only loopback and ephemeral credentials, never a game. UI integration checks pinned TLS/approval, Garage photo delivery, exact spawn, direct power/repair, keyboard Done and stale disconnection. The fixture verifies command order, sequence and frozen target before marking success. Unit tests cover protocol/policy/empty-map gates, isolated Keychain revocation and loopback USB forwarding. Simulator builds use an ad-hoc signature and a synthetic, simulator-only Keychain identity to exercise real Keychain access without Apple credentials. That identity is SDK-scoped and never used for device IPA builds or user provisioning. CI retains `.xcresult`; simulator tests are not physical-device or live-game certification.
 
 For a physical iPhone, select your signing team in Xcode and a unique bundle identifier if required. A real device on Wi-Fi requires the actual updated PC app, not the simulator's loopback fixture. Do not upload signing credentials or provisioning profiles to this repository. No App Store/TestFlight upload or signed IPA is currently provided.
 

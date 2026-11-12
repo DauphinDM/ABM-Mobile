@@ -22,13 +22,16 @@ struct RememberedPC: Codable {
         return pc
     }
     func save(account: String = "pc") -> Bool {
-        guard let data = try? JSONEncoder().encode(self) else { return false }
+        saveStatus(account: account) == errSecSuccess
+    }
+    func saveStatus(account: String = "pc") -> OSStatus {
+        guard let data = try? JSONEncoder().encode(self) else { return errSecParam }
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: Self.service, kSecAttrAccount as String: account]
         let attributes: [String: Any] = [kSecValueData as String: data, kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly]
         let status = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
-        if status == errSecSuccess { return true }
-        guard status == errSecItemNotFound else { return false }
-        return SecItemAdd(query.merging(attributes) { _, new in new } as CFDictionary, nil) == errSecSuccess
+        if status == errSecSuccess { return status }
+        guard status == errSecItemNotFound else { return status }
+        return SecItemAdd(query.merging(attributes) { _, new in new } as CFDictionary, nil)
     }
     static func forget(account: String = "pc") -> Bool {
         let status = SecItemDelete([kSecClass as String: kSecClassGenericPassword, kSecAttrService as String: service, kSecAttrAccount as String: account] as CFDictionary)
