@@ -1,8 +1,8 @@
 # ABM Mobile
 
-Android companion for [PC ABM](https://github.com/DauphinDM/ABM). Same dark dashboard and shared Qt Quick components, with a touch-oriented interface and an opt-in, encrypted connection to your PC.
+Android and native iOS companions for [PC ABM](https://github.com/DauphinDM/ABM), with an opt-in, encrypted connection to your PC. Android shares the PC's dark Qt Quick dashboard components. iOS uses SwiftUI with native iOS 26 Liquid Glass navigation and controls, not a Qt or web wrapper.
 
-**Early development, not a complete port.** Requires the new PC Connect implementation; PC ABM 0.12.0 does not include it. No APK has been device-tested yet. This does not run BeamNG on Android and is not an official BeamNG or BeamMP app.
+**Early development, not a complete port.** Requires the new PC Connect implementation; PC ABM 0.12.0 does not include it. Android builds successfully in CI, but no physical phone has been tested. iOS simulator verification is tracked separately; a simulator ZIP is not an installable iPhone IPA. Neither app runs BeamNG on the phone. This is not an official BeamNG or BeamMP app.
 
 ## Connect your phone
 
@@ -30,6 +30,8 @@ Not yet ported: vehicle photos, QR scanning, preset-file management, profile/acc
 
 ## Build and test
 
+### Android / Qt
+
 Desktop development needs Qt 6.8+ with Quick/Controls/Network/Test, a C++17 compiler, qmake and OpenSSL. On a machine with Qt:
 
 ```sh
@@ -43,6 +45,10 @@ Tests use a local synthetic TLS server, check pin rejection before secret transm
 The GitHub Actions workflow also builds an **arm64 Android development APK** using Qt 6.8.3, Android API 35, NDK 26.1 and Java 17. The debug-signed APK and `SHA256SUMS` are workflow artifacts, not a Play Store release or a stable signing identity. Requires Android 9/API 28 or newer. Extract the artifact and install the APK manually only on a device you choose; CI does not install anything on your phone.
 
 Android builds first run `bin/fetch-android-openssl` with `ANDROID_NDK_ROOT` set. It verifies the OpenSSL 3.5.9 LTS source archive checksum, builds arm64 TLS libraries and fetches license notices; see [third-party notices](docs/THIRD-PARTY.md). Do not commit `vendor/`, build output, pairing links, private certificates or personal telemetry.
+
+### Native iOS
+
+The independent `ios/` app requires **iOS 26+**, Xcode 26+ on macOS and XcodeGen. It uses SwiftUI, Network.framework, Security and CryptoKit, not Qt/OpenSSL. See [iOS build and design notes](docs/ios.md). The iOS workflow builds/tests on an iPhone simulator and archives the simulator app plus XCTest results. Installing on a physical iPhone requires your own Apple signing configuration; no Apple account, signing key or distribution identity is included.
 
 ## Design and security
 

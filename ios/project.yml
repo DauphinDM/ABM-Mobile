@@ -1,0 +1,50 @@
+name: ABMMobile
+options:
+  bundleIdPrefix: io.github.dauphindm
+  deploymentTarget:
+    iOS: '26.0'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    MARKETING_VERSION: 0.1.0
+    CURRENT_PROJECT_VERSION: 1
+    DEVELOPMENT_TEAM: ''
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  ABMMobile:
+    type: application
+    platform: iOS
+    sources: [ABMMobile]
+    info:
+      path: Generated/Info.plist
+      properties:
+        CFBundleDisplayName: ABM Mobile
+        UILaunchScreen: {}
+        NSLocalNetworkUsageDescription: Connect to your PC ABM on private Wi-Fi to display game telemetry and send commands you approve.
+        UIApplicationSupportsIndirectInputEvents: YES
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.dauphindm.abmmobile
+        TARGETED_DEVICE_FAMILY: '1,2'
+        GENERATE_INFOPLIST_FILE: NO
+    scheme:
+      testTargets: [ABMMobileTests, ABMMobileUITests]
+  ABMMobileTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [ABMMobileTests]
+    dependencies:
+      - target: ABMMobile
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+  ABMMobileUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [ABMMobileUITests]
+    dependencies:
+      - target: ABMMobile
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES

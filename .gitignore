@@ -5,3 +5,6 @@
 *.apk
 *.aab
 /android/assets/notices/
+ios/*.xcodeproj/
+ios/Generated/
+ios/ABMMobileUITests/Resources/TestConfig.json

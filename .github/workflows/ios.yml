@@ -1,0 +1,38 @@
+name: Native iOS
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  simulator:
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - name: Start isolated TLS fixture
+        run: |
+          python3 tests/ios_tls_fixture.py > "$RUNNER_TEMP/abm-ios-fixture.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/abm-ios-fixture.pid"
+          for i in {1..40}; do test -f ios/ABMMobileUITests/Resources/TestConfig.json && break; sleep 0.25; done
+          test -f ios/ABMMobileUITests/Resources/TestConfig.json
+      - name: Generate project and test native app
+        run: |
+          cd ios
+          xcodegen generate
+          xcodebuild test -project ABMMobile.xcodeproj -scheme ABMMobile -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ../build/ios -resultBundlePath ../build/ios-tests.xcresult CODE_SIGNING_ALLOWED=NO
+      - name: Package simulator app (not an installable iPhone IPA)
+        run: |
+          mkdir -p dist
+          ditto -c -k --keepParent build/ios/Build/Products/Debug-iphonesimulator/ABMMobile.app dist/ABM-Mobile-0.1.0-iOS-Simulator.zip
+          cd dist
+          shasum -a 256 ABM-Mobile-0.1.0-iOS-Simulator.zip > SHA256SUMS-ios
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ABM-Mobile-iOS-Simulator
+          path: |
+            dist/*
+            build/ios-tests.xcresult
+          if-no-files-found: warn
+      - name: Stop fixture
+        if: always()
+        run: test ! -f "$RUNNER_TEMP/abm-ios-fixture.pid" || kill "$(cat "$RUNNER_TEMP/abm-ios-fixture.pid")" || true
