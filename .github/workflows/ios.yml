@@ -19,7 +19,7 @@ jobs:
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")" = 0.1.0
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")" = 1
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleSupportedPlatforms:0' "$app/Info.plist")" = iPhoneOS
-          lipo -verify_arch arm64 "$app/ABMMobile"
+          lipo "$app/ABMMobile" -verify_arch arm64
           mkdir -p build/ios-device-package/Payload dist
           ditto "$app" build/ios-device-package/Payload/ABMMobile.app
           cd build/ios-device-package
