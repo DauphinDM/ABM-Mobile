@@ -21,6 +21,7 @@ import ImageIO
     private var started: TimeInterval = 0
     private var sequence = 0
     private var watchdog: Timer?
+    private var staleSince: TimeInterval = 0
     private var endpoint: (host: String, port: UInt16, pin: String, name: String)?
     private var imageRequests = Set<String>()
     private var imageQueue: [String] = []
@@ -52,7 +53,7 @@ import ImageIO
         old?.cancel()
         usbRelay.stop()
         approved = false; connected = false; snapshot = .null
-        decoder = LineDecoder(); lastSnapshot = 0; started = 0; sequence = 0
+        decoder = LineDecoder(); lastSnapshot = 0; started = 0; sequence = 0; staleSince = 0
         imageRequests = []; imageQueue = []; imageFlight = []; thumbnails = [:]; roundTripMS = nil; pingAt = 0
         storageWarning = ""
         message = reason
@@ -177,22 +178,32 @@ import ImageIO
             var merged = value.object
             for key in ["catalog","configs","configsModel"] where merged[key] == nil { merged[key] = snapshot[key] }
             snapshot = .object(merged); connected = true; lastSnapshot = ProcessInfo.processInfo.systemUptime
+            staleSince = 0
             if message == "PC approved. Waiting for telemetry…" { message = "Connected. PC and game restrictions remain enforced." }
         case "receipt" where approved: message = String(value["message"].text.prefix(512))
         case "error": disconnect(String(value["message"].text.prefix(512)))
         default: disconnect("Unexpected PC response.")
         }
     }
-    private func checkFreshness() {
+    private func checkFreshness(strict: Bool = false) {
         let now = ProcessInfo.processInfo.systemUptime
-        if approved && now - lastSnapshot > 2 { disconnect("PC updates stopped. Controls disabled; pair again.") }
+        if approved && now - lastSnapshot > 2 {
+            // A busy main queue delays both telemetry delivery and this timer.
+            // Commands fail closed immediately; the timer waits for one short
+            // confirmation so buffered updates can clear a false stall.
+            if !strict {
+                if staleSince == 0 { staleSince = now; return }
+                if now - staleSince < 0.5 { return }
+            }
+            disconnect("PC updates stopped. Controls disabled; pair again.")
+        }
         else if !approved && started > 0 && now - started > 120 { disconnect("Pairing timed out.") }
         else if connected, let socket = connection, now-pingAt >= 2 { pingAt = now; send(.object(["kind": .string("ping"), "stamp": .number(now)]), on: socket) }
     }
     func command(_ action: String, args: [String: JSONValue] = [:], frozenTarget: JSONValue? = nil) {
         // A busy main run loop can delay the timer; never use stale telemetry
         // merely because its scheduled watchdog callback has not run yet.
-        checkFreshness()
+        checkFreshness(strict: true)
         let reads = ["catalog", "configs"]
         let changes = ["power", "rpm", "clutch", "gears", "repair", "extinguish", "stability", "fullReset", "switch", "spawn", "replace", "resetTrip"]
         guard let socket = connection, connected, canBrowse, reads.contains(action) || (changes.contains(action) && (action == "spawn" ? canSpawn : canChange)),

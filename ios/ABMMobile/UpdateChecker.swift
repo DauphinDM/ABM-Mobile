@@ -23,7 +23,7 @@ private final class UpdateRedirectPolicy: NSObject, URLSessionTaskDelegate {
 
     init(defaults: UserDefaults = .standard, current: String? = nil) {
         self.defaults=defaults
-        self.current=current ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0"
+        self.current=current ?? Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.2.0"
         automatic=defaults.bool(forKey: "updates.automatic"); previews=defaults.bool(forKey: "updates.previews")
         lastCheck=defaults.object(forKey: "updates.lastCheck") as? Date
         let config=URLSessionConfiguration.ephemeral

@@ -2,7 +2,7 @@
 
 Android and native iOS companions for [PC ABM](https://github.com/DauphinDM/ABM), with an opt-in, encrypted connection to your PC. Android shares the PC's dark Qt Quick dashboard components. iOS uses SwiftUI with native iOS 26 Liquid Glass navigation and controls, not a Qt or web wrapper.
 
-**Early development, not a complete port.** Requires the current PC Connect implementation; released PC ABM 0.12.0 does not include it. An earlier locally re-signed iPhone build has connected successfully over Wi-Fi. New USB and remembered-device functionality still needs physical-device verification. A simulator ZIP is not an installable iPhone IPA. Neither app runs BeamNG on the phone. This is not an official BeamNG or BeamMP app.
+**Early development, not a complete port.** Requires PC ABM 0.13.0 or newer for Connect; the older 0.12.0 release does not include it. An earlier locally re-signed iPhone build has connected successfully over Wi-Fi. New USB and remembered-device functionality still needs physical-device verification. A simulator ZIP is not an installable iPhone IPA. Neither app runs BeamNG on the phone. This is not an official BeamNG or BeamMP app.
 
 ## Connect your phone
 

@@ -9,7 +9,7 @@
 #include "appupdates.h"
 int main(int argc, char **argv) {
     QGuiApplication app(argc,argv);
-    app.setApplicationName("ABM Mobile"); app.setOrganizationName("ABM"); app.setApplicationVersion("0.1.0");
+    app.setApplicationName("ABM Mobile"); app.setOrganizationName("ABM"); app.setApplicationVersion("0.2.0");
     QQuickStyle::setStyle("MotorsportGlass"); QQuickStyle::setFallbackStyle("Basic");
     QPalette palette; palette.setColor(QPalette::Window,QColor("#10141b")); palette.setColor(QPalette::WindowText,QColor("#edf1f7"));
     palette.setColor(QPalette::Text,QColor("#edf1f7")); palette.setColor(QPalette::ButtonText,QColor("#edf1f7"));

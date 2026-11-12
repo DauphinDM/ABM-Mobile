@@ -35,9 +35,13 @@ snapshot = {"kind": "snapshot", "v": 1, "target": target, "state": state, "busy"
 photo = "c" * 64
 preview = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgsKCA0LCgsODg0PEyAVExISEyccHhcgLikxMC4pLSwzOko+MzZGNywtQFdBRkxOUlNSMj5aYVpQYEpRUk//2wBDAQ4ODhMREyYVFSZPNS01T09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0//wAARCAAUACADASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFgEBAQEAAAAAAAAAAAAAAAAAAAUG/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8ArgGBVQAAAAAH/9k="
 
+def log(message):
+    print(f"{time.monotonic():.3f} {message}", flush=True)
+
 def handle(raw):
     try:
         with context.wrap_socket(raw, server_side=True) as peer:
+            log("client connected")
             peer.settimeout(.2)
             buffer = b""; paired = False; stale = False; last = 0; sequence = 0
             library = {"catalog": [], "configs": [], "configsModel": ""}
@@ -54,7 +58,7 @@ def handle(raw):
                     value = json.loads(line)
                     if not paired:
                         assert value["kind"] == "pair" and value["v"] == 1 and secrets.compare_digest(value["secret"], secret)
-                        paired = True; send({"kind": "pending"})
+                        paired = True; log("pair accepted"); send({"kind": "pending"})
                         time.sleep(.25); send({"kind": "ready"}); send(snapshot)
                     elif value["kind"] == "ping": send({"kind": "pong", "stamp": value["stamp"]})
                     elif value["kind"] == "thumbnail":
@@ -65,6 +69,7 @@ def handle(raw):
                         assert value["kind"] == "command" and value["target"] == target and value["seq"] == sequence
                         action = value["action"]
                         assert action == ["catalog", "configs", "spawn", "power", "repair"][sequence - 1]
+                        log(f"command {sequence}: {action}")
                         if action == "catalog": library["catalog"] = [{"id": "testcar", "name": "Fixture car", "photo": photo}]
                         elif action == "configs":
                             assert value["args"]["model"] == "testcar"
@@ -73,12 +78,17 @@ def handle(raw):
                         elif action == "power": assert value["args"]["value"] == 2
                         elif action == "repair":
                             Path(os.environ.get("ABM_IOS_COMMAND_MARKER", str(folder / "command-ok"))).touch()
-                            stale = True
+                            stale = True; log("repair accepted; periodic snapshots stopped")
                         send({"kind": "receipt", "seq": sequence, "message": "Fixture accepted " + action})
                         if not stale: send(dict(snapshot, **library))
                 if paired and not stale and time.monotonic() - last > .25:
-                    send(dict(snapshot, **library)); last = time.monotonic()
-    except (ssl.SSLError, OSError): pass
+                    send(dict(snapshot, **library)); last = time.monotonic(); log("periodic snapshot")
+    except AssertionError as error:
+        log(f"protocol violation: {error}")
+    except (ssl.SSLError, OSError) as error:
+        log(f"connection closed: {type(error).__name__}")
+    except Exception as error:
+        log(f"fixture handler failed: {type(error).__name__}: {error}")
 
 print("Simulator TLS fixture ready", flush=True)
 while True:

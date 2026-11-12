@@ -18,7 +18,7 @@ class DevicePackagingTests(unittest.TestCase):
     def bundle(self):
         info = {'CFBundlePackageType': 'APPL', 'CFBundleExecutable': 'ABMMobile',
                 'CFBundleIdentifier': 'io.github.dauphindm.abmmobile',
-                'CFBundleShortVersionString': '0.1.0', 'CFBundleVersion': '4',
+                'CFBundleShortVersionString': '0.2.0', 'CFBundleVersion': '5',
                 'CFBundleSupportedPlatforms': ['iPhoneOS'], 'MinimumOSVersion': '26.0',
                 'UIDeviceFamily': [1, 2], 'NSLocalNetworkUsageDescription': 'Connect to your PC.'}
         primary = {'CFBundlePrimaryIcon': {'CFBundleIconName': 'AppIcon', 'CFBundleIconFiles': ['AppIcon']}}

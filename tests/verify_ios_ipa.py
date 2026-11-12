@@ -51,8 +51,8 @@ def check_ipa(path):
         info = plistlib.loads(archive.read(info_path))
         assert info['CFBundlePackageType'] == 'APPL'
         assert info['CFBundleIdentifier'] == 'io.github.dauphindm.abmmobile'
-        assert info['CFBundleShortVersionString'] == '0.1.0'
-        assert info['CFBundleVersion'] == '4'
+        assert info['CFBundleShortVersionString'] == '0.2.0'
+        assert info['CFBundleVersion'] == '5'
         assert info['CFBundleSupportedPlatforms'] == ['iPhoneOS']
         assert info['MinimumOSVersion'] == '26.0'
         assert info['UIDeviceFamily'] == [1, 2]

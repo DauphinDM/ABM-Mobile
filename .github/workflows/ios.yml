@@ -17,8 +17,8 @@ jobs:
       - name: Package IPA for user-side signing
         run: |
           app=build/ios-device/Build/Products/Release-iphoneos/ABMMobile.app
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")" = 0.1.0
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")" = 4
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")" = 0.2.0
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")" = 5
           test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleSupportedPlatforms:0' "$app/Info.plist")" = iPhoneOS
           lipo "$app/ABMMobile" -verify_arch arm64
           # Exercise re-signing and verify bundle integrity without Apple credentials.
@@ -28,16 +28,16 @@ jobs:
           mkdir -p build/ios-device-package/Payload dist
           ditto "$app" build/ios-device-package/Payload/ABMMobile.app
           cd build/ios-device-package
-          ditto -c -k --keepParent Payload "$GITHUB_WORKSPACE/dist/ABM-Mobile-0.1.0-iOS-arm64-unsigned-build4.ipa"
+          ditto -c -k --keepParent Payload "$GITHUB_WORKSPACE/dist/ABM-Mobile-0.2.0-iOS-arm64-unsigned-build5.ipa"
           cd "$GITHUB_WORKSPACE"
-          python3 tests/verify_ios_ipa.py dist/ABM-Mobile-0.1.0-iOS-arm64-unsigned-build4.ipa
+          python3 tests/verify_ios_ipa.py dist/ABM-Mobile-0.2.0-iOS-arm64-unsigned-build5.ipa
           cd "$GITHUB_WORKSPACE/dist"
-          shasum -a 256 ABM-Mobile-0.1.0-iOS-arm64-unsigned-build4.ipa > SHA256SUMS-ipa
+          shasum -a 256 ABM-Mobile-0.2.0-iOS-arm64-unsigned-build5.ipa > SHA256SUMS-ipa
       - uses: actions/upload-artifact@v4
         with:
           name: ABM-Mobile-iOS-Unsigned-IPA
           path: |
-            dist/ABM-Mobile-0.1.0-iOS-arm64-unsigned-build4.ipa
+            dist/ABM-Mobile-0.2.0-iOS-arm64-unsigned-build5.ipa
             dist/SHA256SUMS-ipa
           if-no-files-found: error
   simulator:
@@ -81,12 +81,12 @@ jobs:
       - name: Package simulator app (not an installable iPhone IPA)
         run: |
           app=build/ios/Build/Products/Debug-iphonesimulator/ABMMobile.app
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")" = 0.1.0
-          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")" = 4
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$app/Info.plist")" = 0.2.0
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$app/Info.plist")" = 5
           mkdir -p dist
-          ditto -c -k --keepParent "$app" dist/ABM-Mobile-0.1.0-iOS-Simulator.zip
+          ditto -c -k --keepParent "$app" dist/ABM-Mobile-0.2.0-iOS-Simulator.zip
           cd dist
-          shasum -a 256 ABM-Mobile-0.1.0-iOS-Simulator.zip > SHA256SUMS-ios
+          shasum -a 256 ABM-Mobile-0.2.0-iOS-Simulator.zip > SHA256SUMS-ios
       - name: Export simulator screenshots
         if: always()
         run: |

@@ -15,7 +15,7 @@ Reference: Apple's [Build a SwiftUI app with the new design](https://developer.a
 
 `NWConnection` uses TLS 1.2 or newer and TCP no-delay. Its Security callback checks the exact leaf certificate SHA256 **before** sending pairing or resume credentials. This is a pinned identity, not a blanket certificate exception. Invitations accept only strictly parsed private IPv4/loopback. Optional remembered tokens use device-only Keychain and explicit reconnect; there is no Bonjour broadcast or cloud relay. USB uses bounded Network.framework loopback byte relays while retaining end-to-end TLS; see the README for PC helper/port setup.
 
-Initial PC approval precedes snapshots/commands; optional saved access can later resume explicitly while the PC host is enabled. Stop retains tokens; Forget on PC revokes them. Commands carry increasing sequences and the current frozen target. Offline, stale, moving, unowned, busy or denied states disable mutations; spawning into a loaded empty map needs no existing vehicle. PC and game remain authoritative. A two-second snapshot watchdog and backgrounding disconnect. No automatic reconnect or offline queue exists.
+Initial PC approval precedes snapshots/commands; optional saved access can later resume explicitly while the PC host is enabled. Stop retains tokens; Forget on PC revokes them. Commands carry increasing sequences and the current frozen target. Offline, stale, moving, unowned, busy or denied states disable mutations; spawning into a loaded empty map needs no existing vehicle. PC and game remain authoritative. A two-second snapshot watchdog with a short confirmation before disconnecting, plus backgrounding, disables control. No automatic reconnect or offline queue exists.
 
 The local-network permission text explains why access is needed. There is no global App Transport Security exception, remote scripting, filesystem API, analytics SDK or third-party networking dependency. The link field is privacy-sensitive; invitation values are never logged. Keep links out of screenshots, issue reports and source control. Local paste/copy is explicit; no QR camera permission is requested.
 
@@ -44,7 +44,7 @@ For a physical iPhone, select your signing team in Xcode and a unique bundle ide
 
 ## Test on your iPhone using the unsigned IPA
 
-The **Native iOS** workflow builds a Release **iPhoneOS arm64** app, packaged as `ABM-Mobile-0.1.0-iOS-arm64-unsigned-build3.ipa` inside `ABM-Mobile-iOS-Unsigned-IPA`. This is a device binary, not a renamed simulator build. Verify `SHA256SUMS-ipa`. Build 3 adds photos, direct actions, keyboard dismissal, remembered access and experimental USB transport; it requires updated PC source too.
+The **Native iOS** workflow builds a Release **iPhoneOS arm64** app, packaged as `ABM-Mobile-0.2.0-iOS-arm64-unsigned-build5.ipa` inside `ABM-Mobile-iOS-Unsigned-IPA`. This is a device binary, not a renamed simulator build. Verify `SHA256SUMS-ipa`. Build 5 adds opt-in release checks, bounded Garage photos, direct actions, keyboard dismissal, remembered access and experimental USB transport; it requires PC ABM 0.13.0 or newer.
 
 Build 2 adds the PC ABM icon as a complete iPhone/iPad asset catalog, generated icon metadata and a temporary ad-hoc signature. CI exercises `codesign` re-signing/strict verification and checks the packaged device platform, executable, icons, permissions and metadata. The ad-hoc signature is only a re-signing scaffold, **not** an Apple certificate/provisioning identity. A physical installation still requires your own valid signing configuration.
 
