@@ -69,20 +69,24 @@ struct GameRequest: Identifiable {
         connection = socket; started = ProcessInfo.processInfo.systemUptime
         message = "Connecting securely to PC…"
         socket.stateUpdateHandler = { [weak self, weak socket] status in
-            guard let self, let socket, self.connection === socket else { return }
-            switch status {
-            case .ready:
-                self.send(.object(["kind": .string("pair"), "v": .number(1), "secret": .string(invite.secret), "device": .string(name)]), on: socket)
-                // Drop the credential-bearing handler after the handshake.
-                socket.stateUpdateHandler = { [weak self, weak socket] status in
-                    guard let self, let socket, self.connection === socket else { return }
-                    if case .failed = status { self.disconnect("Connection failed. Check Wi-Fi, the invitation and PC approval.") }
-                    if case .cancelled = status { self.disconnect() }
+            Task { @MainActor [weak self, weak socket] in
+                guard let self, let socket, self.connection === socket else { return }
+                switch status {
+                case .ready:
+                    self.send(.object(["kind": .string("pair"), "v": .number(1), "secret": .string(invite.secret), "device": .string(name)]), on: socket)
+                    // Drop the credential-bearing handler after the handshake.
+                    socket.stateUpdateHandler = { [weak self, weak socket] status in
+                        Task { @MainActor [weak self, weak socket] in
+                            guard let self, let socket, self.connection === socket else { return }
+                            if case .failed = status { self.disconnect("Connection failed. Check Wi-Fi, the invitation and PC approval.") }
+                            if case .cancelled = status { self.disconnect() }
+                        }
+                    }
+                    self.receive(on: socket)
+                case .failed: self.disconnect("TLS connection failed. Check Wi-Fi and the PC certificate invitation.")
+                case .cancelled: self.disconnect()
+                default: break
                 }
-                self.receive(on: socket)
-            case .failed: self.disconnect("TLS connection failed. Check Wi-Fi and the PC certificate invitation.")
-            case .cancelled: self.disconnect()
-            default: break
             }
         }
         socket.start(queue: .main)
@@ -91,21 +95,25 @@ struct GameRequest: Identifiable {
     private func send(_ value: JSONValue, on socket: NWConnection) {
         guard let encoded = try? JSONEncoder().encode(value), encoded.count <= 32768 else { disconnect("Command exceeded the size limit."); return }
         socket.send(content: encoded + Data([10]), completion: .contentProcessed { [weak self, weak socket] error in
-            guard let self, let socket, self.connection === socket else { return }
-            if error != nil { self.disconnect("Connection lost. Nothing is queued for reconnect.") }
+            Task { @MainActor [weak self, weak socket] in
+                guard let self, let socket, self.connection === socket else { return }
+                if error != nil { self.disconnect("Connection lost. Nothing is queued for reconnect.") }
+            }
         })
     }
     private func receive(on socket: NWConnection) {
         socket.receive(minimumIncompleteLength: 1, maximumLength: 65536) { [weak self, weak socket] data, _, complete, error in
-            guard let self, let socket, self.connection === socket else { return }
-            do {
-                if let data { for value in try self.decoder.append(data) {
-                    self.accept(value)
-                    guard self.connection === socket else { return }
-                } }
-            } catch { self.disconnect("Invalid or oversized PC response."); return }
-            if complete || error != nil { self.disconnect("PC disconnected. All controls disabled."); return }
-            self.receive(on: socket)
+            Task { @MainActor [weak self, weak socket] in
+                guard let self, let socket, self.connection === socket else { return }
+                do {
+                    if let data { for value in try self.decoder.append(data) {
+                        self.accept(value)
+                        guard self.connection === socket else { return }
+                    } }
+                } catch { self.disconnect("Invalid or oversized PC response."); return }
+                if complete || error != nil { self.disconnect("PC disconnected. All controls disabled."); return }
+                self.receive(on: socket)
+            }
         }
     }
     private func accept(_ value: JSONValue) {
