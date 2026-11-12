@@ -45,6 +45,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: brew install xcodegen
+      - name: Prepare an available iOS simulator
+        timeout-minutes: 20
+        run: |
+          python3 tests/ios_simulator_test.py
+          python3 bin/prepare-ios-simulator.py
       - name: Start isolated TLS fixture
         run: |
           ABM_IOS_COMMAND_MARKER="$RUNNER_TEMP/abm-ios-command-ok" python3 tests/ios_tls_fixture.py > "$RUNNER_TEMP/abm-ios-fixture.log" 2>&1 &
@@ -57,7 +62,7 @@ jobs:
           xcodegen generate
           # Ad-hoc simulator identity permits real Keychain tests without Apple credentials.
           # Simulator.entitlements is SDK-scoped and is never used for the device IPA.
-          xcodebuild test -project ABMMobile.xcodeproj -scheme ABMMobile -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ../build/ios -resultBundlePath ../build/ios-tests.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY="-"
+          xcodebuild test -project ABMMobile.xcodeproj -scheme ABMMobile -destination "platform=iOS Simulator,id=$ABM_SIMULATOR_ID" -derivedDataPath ../build/ios -resultBundlePath ../build/ios-tests.xcresult CODE_SIGNING_ALLOWED=YES CODE_SIGN_IDENTITY="-"
           test -f "$RUNNER_TEMP/abm-ios-command-ok"
       - name: Package simulator app (not an installable iPhone IPA)
         run: |
@@ -86,3 +91,6 @@ jobs:
       - name: Stop fixture
         if: always()
         run: test ! -f "$RUNNER_TEMP/abm-ios-fixture.pid" || kill "$(cat "$RUNNER_TEMP/abm-ios-fixture.pid")" || true
+      - name: Stop isolated simulator
+        if: always()
+        run: test -z "$ABM_SIMULATOR_ID" || xcrun simctl shutdown "$ABM_SIMULATOR_ID" || true
