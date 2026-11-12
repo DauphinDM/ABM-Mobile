@@ -7,6 +7,7 @@ ApplicationWindow {
     visible: true; width: 412; height: 860; minimumWidth: 320; minimumHeight: 440
     title: "ABM Mobile"; color: "#10141b"; font.pixelSize: 14
     property int page: 4
+    onPageChanged: dismissKeyboard()
     property bool metric: true
     readonly property var game: remote.state
     readonly property var telemetry: game.telemetry || ({})
@@ -14,9 +15,9 @@ ApplicationWindow {
     readonly property bool live: remote.connected && game.connected === true
     readonly property bool stopped: typeof telemetry.speed === "number" && telemetry.speed <= 1
     readonly property bool canChange: live && !remote.busy && game.controlsAvailable === true && game.sandboxAllowed === true && game.vehicleOwned === true && !game.joining && !game.policyCleanup && stopped
+    readonly property bool canSpawn: live && !remote.busy && game.controlsAvailable === true && game.sandboxAllowed === true && !game.joining && !game.policyCleanup && !!game.map && (typeof game.vehicleId === "undefined" || win.canChange)
     readonly property string identity: JSON.stringify(remote.target)
     onIdentityChanged: {
-        if (confirmAction) confirmAction.close()
         if (power) power.text = "100"
         if (rpm) rpm.text = ""
         if (ratios) ratios.text = ""
@@ -24,11 +25,13 @@ ApplicationWindow {
     }
     property string selectedModel: ""
     property string selectedConfig: ""
-    property string pendingAction: ""
-    property var pendingArgs: ({})
+    readonly property bool editing: !!activeFocusItem && typeof activeFocusItem.cursorPosition === "number"
     function request(action, args, title) {
-        pendingAction = action; pendingArgs = args || ({}); confirmAction.title = title; confirmAction.open()
+        dismissKeyboard()
+        remote.command(action,args || ({}))
     }
+    function dismissKeyboard() { if (activeFocusItem) activeFocusItem.focus=false; Qt.inputMethod.hide() }
+    Shortcut { sequence: "Escape"; enabled: Qt.inputMethod.visible; onActivated: win.dismissKeyboard() }
     ColumnLayout {
         anchors.fill: parent; anchors.margins: width < 380 ? 12 : 20; spacing: 14
         RowLayout {
@@ -41,6 +44,7 @@ ApplicationWindow {
                 PlainLabel { text: qsTr("YOUR GAME. YOUR PHONE."); font.pixelSize: 9; color: "#a0aabb"; font.letterSpacing: 1 }
             }
             StatusPill { text: remote.connected ? qsTr("PAIRED") : qsTr("OFFLINE"); active: remote.connected }
+            Button { objectName: "dismissKeyboard"; text: qsTr("Done"); visible: Qt.inputMethod.visible || win.editing; onClicked: win.dismissKeyboard() }
         }
         NavDock { Layout.fillWidth: true; currentPage: win.page; labels: [qsTr("Drive"),qsTr("Car"),qsTr("Garage"),qsTr("Session"),qsTr("Connect")]; onSelected: function(page) { win.page = page } }
         PlainLabel { text: [qsTr("Drive"),qsTr("Workshop"),qsTr("Garage"),qsTr("Session"),qsTr("Connect")][win.page]; color: "#edf1f7"; font.pixelSize: 26; font.weight: Font.DemiBold }
@@ -60,6 +64,7 @@ ApplicationWindow {
                         MetricCard { label: qsTr("FUEL"); value: typeof win.telemetry.fuel === "number" ? String(Math.round(win.telemetry.fuel*100)) : "—"; unit: "%" }
                         MetricCard { label: qsTr("COOLANT"); value: typeof win.telemetry.waterTemp === "number" ? String(Math.round(win.telemetry.waterTemp)) : "—"; unit: "°C" }
                         MetricCard { label: qsTr("LATENCY"); value: typeof win.game.ping === "number" ? String(Math.round(win.game.ping)) : "—"; unit: "ms" }
+                        MetricCard { label: qsTr("PHONE ↔ PC"); value: remote.roundTripMs >= 0 ? String(remote.roundTripMs) : "—"; unit: "ms" }
                     }
                     Button { Layout.fillWidth: true; implicitHeight: 48; text: win.metric ? qsTr("Use mph") : qsTr("Use km/h"); onClicked: win.metric = !win.metric }
                     PlainLabel { Layout.fillWidth: true; text: qsTr("Telemetry comes from your PC. This is not a steering wheel or a throttle controller."); color: "#a0aabb"; font.pixelSize: 12 }
@@ -72,8 +77,8 @@ ApplicationWindow {
                         text: win.canChange ? qsTr("Stopped, owned vehicle. Every change is checked again by the PC and game.") : qsTr("Connect a live game and stop an owned vehicle on a permitted server to change settings.") }
                     SectionPanel { Layout.fillWidth: true
                         PlainLabel { text: qsTr("Engine power"); color: "#edf1f7"; font.pixelSize: 18 }
-                        TextField { id: power; Layout.fillWidth: true; implicitHeight: 48; text: "100"; placeholderText: qsTr("Power percent"); inputMethodHints: Qt.ImhFormattedNumbersOnly; validator: DoubleValidator { bottom: 1; top: 2000; locale: "C" } }
-                        Button { Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Apply power %"); enabled: win.canChange && power.acceptableInput && (win.game.capabilities || {}).power === true; onClicked: win.request("power", {value:Number(power.text)/100}, qsTr("Change engine power?")) }
+                        TextField { id: power; objectName: "powerInput"; Layout.fillWidth: true; implicitHeight: 48; text: "100"; placeholderText: qsTr("Power percent"); inputMethodHints: Qt.ImhFormattedNumbersOnly; validator: DoubleValidator { bottom: 1; top: 2000; locale: "C" } }
+                        Button { objectName: "applyPower"; Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Apply power %"); enabled: win.canChange && power.acceptableInput && (win.game.capabilities || {}).power === true; onClicked: win.request("power", {value:Number(power.text)/100}, qsTr("Change engine power?")) }
                         TextField { id: rpm; Layout.fillWidth: true; implicitHeight: 48; placeholderText: qsTr("Maximum RPM (100–30000)"); inputMethodHints: Qt.ImhDigitsOnly; validator: IntValidator { bottom: 100; top: 30000 } }
                         Button { Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Apply RPM limit"); enabled: win.canChange && rpm.acceptableInput; onClicked: win.request("rpm",{value:Number(rpm.text)},qsTr("Change RPM limit?")) }
                         Button { Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Enable clutch protection"); enabled: win.canChange; onClicked: win.request("clutch",{enabled:true},qsTr("Enable clutch protection?")) }
@@ -99,18 +104,20 @@ ApplicationWindow {
                     Button { text: win.selectedModel ? qsTr("Models") : qsTr("Refresh"); implicitHeight: 48; enabled: remote.connected && !remote.busy; onClicked: { win.selectedModel = ""; win.selectedConfig = ""; remote.command("catalog") } }
                     PlainLabel { Layout.fillWidth: true; text: win.selectedModel || qsTr("Vehicle library"); color: "#a0aabb"; font.pixelSize: 13; elide: Text.ElideRight }
                 }
-                PlainLabel { Layout.fillWidth: true; color: "#a0aabb"; font.pixelSize: 12; text: qsTr("Uses your PC's vehicle catalog. Photos are not transferred in this first version.") }
+                PlainLabel { Layout.fillWidth: true; color: "#a0aabb"; font.pixelSize: 12; text: qsTr("Thumbnails load securely on demand from the PC. Refresh, choose a model, then select a configuration to spawn.") }
                 GridView {
                     id: garage; Layout.fillWidth: true; Layout.fillHeight: true; clip: true
                     readonly property int columns: width >= 400 ? 2 : 1
                     cellWidth: width/columns; cellHeight: cellWidth*.6+64
                     model: win.selectedModel ? (remote.configsModel === win.selectedModel ? remote.configs : []) : remote.catalog
                     delegate: VariantCard { required property var modelData; width: garage.cellWidth-10; height: garage.cellHeight-10; modelCard: !win.selectedModel; selected: win.selectedConfig === modelData.id
+                        Component.onCompleted: remote.requestThumbnail(modelData)
+                        onModelDataChanged: remote.requestThumbnail(modelData)
                         onChosen: if (!win.selectedModel) { win.selectedModel = modelData.id; remote.command("configs",{model:modelData.id}) } else win.selectedConfig = modelData.id
                     }
                 }
                 RowLayout { Layout.fillWidth: true
-                    Button { Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Spawn"); enabled: win.canChange && !!win.selectedConfig; onClicked: win.request("spawn",{config:win.selectedConfig},qsTr("Spawn selected configuration?")) }
+                    Button { Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Spawn"); enabled: win.canSpawn && !!win.selectedConfig; onClicked: win.request("spawn",{config:win.selectedConfig},qsTr("Spawn selected configuration?")) }
                     Button { Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Replace"); enabled: win.canChange && !!win.selectedConfig; onClicked: win.request("replace",{config:win.selectedConfig},qsTr("Replace current vehicle?")) }
                 }
             }
@@ -138,28 +145,29 @@ ApplicationWindow {
             ScrollView {
                 clip: true; contentWidth: availableWidth
                 ColumnLayout { width: parent.width; spacing: 16
+                    SectionPanel { visible: remote.remembered; Layout.fillWidth: true
+                        PlainLabel { text: qsTr("Remembered PC"); color: "#edf1f7"; font.pixelSize: 18 }
+                        Button { Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Reconnect without pairing"); enabled: !remote.connected; onClicked: { win.dismissKeyboard(); remote.reconnectPC() } }
+                        Button { Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Forget saved PC"); onClicked: remote.forgetPC() }
+                    }
                     SectionPanel { Layout.fillWidth: true
                         PlainLabel { text: qsTr("Connect to PC ABM"); color: "#edf1f7"; font.pixelSize: 20 }
                         PlainLabel { Layout.fillWidth: true; text: qsTr("1. Put phone and PC on the same private Wi-Fi.\n2. In PC ABM → Connect, enable access and copy its pairing link.\n3. Paste it below, connect, then approve this phone on the PC."); color: "#a0aabb"; font.pixelSize: 14 }
                         TextField { id: deviceName; Layout.fillWidth: true; implicitHeight: 48; text: qsTr("My Android phone"); maximumLength: 64; placeholderText: qsTr("Device name (shown on PC)") }
                         TextArea { id: invitation; objectName: "pairingLinkInput"; Layout.fillWidth: true; Layout.preferredHeight: 110; placeholderText: "abm://pair/…"; wrapMode: TextEdit.WrapAnywhere; selectByMouse: true; inputMethodHints: Qt.ImhNoPredictiveText | Qt.ImhSensitiveData }
                         Button { objectName: "pairPhone"; Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Connect & request PC approval"); highlighted: true; enabled: invitation.text.trim().length > 0 && !remote.connected
-                            onClicked: { remote.pair(invitation.text.trim(),deviceName.text); invitation.text = "" }
+                            onClicked: { win.dismissKeyboard(); remote.pair(invitation.text.trim(),deviceName.text); invitation.text = "" }
                         }
                         Button { Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Disconnect"); onClicked: remote.disconnectPhone() }
                     }
                     SectionPanel { Layout.fillWidth: true
                         PlainLabel { text: qsTr("Private, encrypted, revocable"); color: "#edf1f7"; font.pixelSize: 16 }
-                        PlainLabel { Layout.fillWidth: true; text: qsTr("The invitation pins your PC's TLS certificate. Access is temporary and requires PC approval. No cloud account, discovery broadcast, saved password, or automatic reconnect. Controls disable if updates stop. Never share your link publicly or forward the PC port to the internet."); color: "#a0aabb"; font.pixelSize: 13 }
+                        PlainLabel { Layout.fillWidth: true; text: qsTr("First pairing requires PC approval. If Remember device is selected on PC, a credential is stored in this app's private storage (Android backup is disabled). Reconnect only works while PC access is enabled; Forget devices on PC revokes it. Android USB: select Android USB on PC, authorize adb over your cable, and paste its loopback link. No commands are queued offline. Never forward the port."); color: "#a0aabb"; font.pixelSize: 13 }
                     }
                 }
             }
         }
         PlainLabel { Layout.fillWidth: true; text: remote.message || qsTr("Open Connect to pair with your PC."); color: theme.accent; font.pixelSize: 12; maximumLineCount: 3; elide: Text.ElideRight }
         PlainLabel { visible: !!remote.actionMessage && win.page !== 4; Layout.fillWidth: true; text: remote.actionMessage; color: "#a0aabb"; font.pixelSize: 12; maximumLineCount: 2; elide: Text.ElideRight }
-    }
-    Dialog { id: confirmAction; anchors.centerIn: parent; width: Math.min(parent.width-24,420); modal: true; standardButtons: Dialog.Ok | Dialog.Cancel
-        contentItem: PlainLabel { text: qsTr("Send this request to your PC? Changes can affect physics or replace the current vehicle. The PC and game will recheck the target, ownership, stopped state and server policy. Acceptance is not guaranteed."); color: "#edf1f7"; font.pixelSize: 14 }
-        onAccepted: if (win.canChange) remote.command(win.pendingAction,win.pendingArgs)
     }
 }

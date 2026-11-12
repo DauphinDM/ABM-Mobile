@@ -30,14 +30,17 @@ resources = root / "ios/ABMMobileUITests/Resources"
 resources.mkdir(exist_ok=True)
 (resources / "TestConfig.json").write_text(json.dumps({"invitation": link}))
 target = {"session": "ios-test", "vehicle": 42, "generation": "test-1", "map": "gridmap_v2", "server": "", "port": 0}
-state = {"connected": True, "controlsAvailable": True, "vehicleOwned": True, "sandboxAllowed": True, "vehicle": "Simulator fixture", "telemetry": {"speed": 0, "rpm": 900, "fuel": .5}, "capabilities": {"power": True}}
+state = {"connected": True, "controlsAvailable": True, "vehicleId": 42, "vehicleOwned": True, "sandboxAllowed": True, "map": "gridmap_v2", "vehicle": "Simulator fixture", "telemetry": {"speed": 0, "rpm": 900, "fuel": .5}, "capabilities": {"power": True}}
 snapshot = {"kind": "snapshot", "v": 1, "target": target, "state": state, "busy": False}
+photo = "c" * 64
+preview = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgsKCA0LCgsODg0PEyAVExISEyccHhcgLikxMC4pLSwzOko+MzZGNywtQFdBRkxOUlNSMj5aYVpQYEpRUk//2wBDAQ4ODhMREyYVFSZPNS01T09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0//wAARCAAUACADASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFgEBAQEAAAAAAAAAAAAAAAAAAAUG/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8ArgGBVQAAAAAH/9k="
 
 def handle(raw):
     try:
         with context.wrap_socket(raw, server_side=True) as peer:
             peer.settimeout(.2)
-            buffer = b""; paired = False; stale = False; last = 0
+            buffer = b""; paired = False; stale = False; last = 0; sequence = 0
+            library = {"catalog": [], "configs": [], "configsModel": ""}
             def send(value): peer.sendall(json.dumps(value, separators=(",", ":")).encode() + b"\n")
             while True:
                 try:
@@ -53,13 +56,28 @@ def handle(raw):
                         assert value["kind"] == "pair" and value["v"] == 1 and secrets.compare_digest(value["secret"], secret)
                         paired = True; send({"kind": "pending"})
                         time.sleep(.25); send({"kind": "ready"}); send(snapshot)
+                    elif value["kind"] == "ping": send({"kind": "pong", "stamp": value["stamp"]})
+                    elif value["kind"] == "thumbnail":
+                        assert value["id"] == photo
+                        send({"kind": "thumbnail", "id": photo, "jpeg": preview})
                     else:
-                        assert value["action"] == "repair" and value["target"] == target and value["seq"] == 1
-                        send({"kind": "receipt", "seq": 1, "message": "Fixture accepted repair"})
-                        Path(os.environ.get("ABM_IOS_COMMAND_MARKER", str(folder / "command-ok"))).touch()
-                        stale = True
+                        sequence += 1
+                        assert value["kind"] == "command" and value["target"] == target and value["seq"] == sequence
+                        action = value["action"]
+                        assert action == ["catalog", "configs", "spawn", "power", "repair"][sequence - 1]
+                        if action == "catalog": library["catalog"] = [{"id": "testcar", "name": "Fixture car", "photo": photo}]
+                        elif action == "configs":
+                            assert value["args"]["model"] == "testcar"
+                            library.update(configsModel="testcar", configs=[{"id": "testcar/base", "name": "Factory test", "photo": photo}])
+                        elif action == "spawn": assert value["args"]["config"] == "testcar/base"
+                        elif action == "power": assert value["args"]["value"] == 2
+                        elif action == "repair":
+                            Path(os.environ.get("ABM_IOS_COMMAND_MARKER", str(folder / "command-ok"))).touch()
+                            stale = True
+                        send({"kind": "receipt", "seq": sequence, "message": "Fixture accepted " + action})
+                        if not stale: send(dict(snapshot, **library))
                 if paired and not stale and time.monotonic() - last > .25:
-                    send(snapshot); last = time.monotonic()
+                    send(dict(snapshot, **library)); last = time.monotonic()
     except (ssl.SSLError, OSError): pass
 
 print("Simulator TLS fixture ready", flush=True)

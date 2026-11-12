@@ -12,7 +12,8 @@ struct DashboardView: View {
     @State private var configuration = ""
     @State private var device = "My iPhone"
     @State private var invitation = ""
-    @State private var pending: GameRequest?
+    private enum Field: Hashable { case power, rpm, ratios, device, invitation }
+    @FocusState private var focused: Field?
     private let columns = [GridItem(.adaptive(minimum: 145), spacing: 12)]
     private var telemetry: JSONValue { client.state["telemetry"] }
 
@@ -24,22 +25,13 @@ struct DashboardView: View {
             Tab("Session", systemImage: "person.2", value: 3) { page("Session") { session } }
             Tab("Connect", systemImage: "link", value: 4) { page("Connect") { connect } }
         }
-        .confirmationDialog(pending?.title ?? "Confirm request", isPresented: Binding(get: { pending != nil }, set: { if !$0 { pending = nil } }), titleVisibility: .visible) {
-            if let request = pending {
-                Button("Send to PC", role: request.action == "replace" || request.action == "fullReset" ? .destructive : nil) {
-                    client.command(request.action, args: request.args, frozenTarget: request.target)
-                    pending = nil
-                }
-                .accessibilityIdentifier("confirmGameAction")
-            }
-            Button("Cancel", role: .cancel) { pending = nil }
-        } message: {
-            Text("This can change physics or replace a vehicle. The PC and game recheck ownership, movement and server policy. A receipt is not verified game acceptance.")
-        }
         .onChange(of: client.target) { _, _ in
-            pending = nil; power = "100"; rpm = ""; ratios = ""; configuration = ""; model = ""
+            focused = nil; power = "100"; rpm = ""; ratios = ""; configuration = ""; model = ""
         }
-        .onChange(of: client.connected) { _, connected in if !connected { pending = nil } }
+        .onChange(of: tab) { _, page in
+            focused = nil
+            if page == 2 && client.canBrowse && client.snapshot["catalog"].array.isEmpty { client.command("catalog") }
+        }
         .onAppear {
             #if DEBUG
             // The simulator fixture seeds a field, never approval or game state.
@@ -66,11 +58,16 @@ struct DashboardView: View {
                 .frame(maxWidth: 760)
                 .frame(maxWidth: .infinity)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(Color(red: 0.063, green: 0.078, blue: 0.106))
             .navigationTitle(title)
-            .toolbar { ToolbarItem(placement: .topBarTrailing) {
-                Text("ABM").font(.headline).foregroundStyle(.yellow).accessibilityLabel("ABM Mobile")
-            } }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) { Text("ABM").font(.headline).foregroundStyle(.yellow).accessibilityLabel("ABM Mobile") }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { focused = nil }.accessibilityIdentifier("dismissKeyboard")
+                }
+            }
         }
     }
 
@@ -97,6 +94,7 @@ struct DashboardView: View {
                 metricCard("Fuel", value: telemetry["fuel"].number.map { $0 * 100 }, unit: "%")
                 metricCard("Coolant", value: telemetry["waterTemp"].number, unit: "°C")
                 metricCard("Latency", value: client.state["ping"].number, unit: "ms")
+                metricCard("Phone ↔ PC", value: client.roundTripMS.map(Double.init), unit: "ms")
             }
             Button(metric ? "Use mph" : "Use km/h") { metric.toggle() }.buttonStyle(.glass)
             Text("Live telemetry from your PC. This app is not a steering wheel or throttle controller.").font(.footnote).foregroundStyle(.secondary)
@@ -117,8 +115,10 @@ struct DashboardView: View {
             panel {
                 Text("Engine").font(.title3.bold())
                 TextField("Power percent (1–2000)", text: $power).keyboardType(.decimalPad).textFieldStyle(.roundedBorder).accessibilityLabel("Power percent")
+                    .focused($focused, equals: .power)
                 actionButton("Apply power", action: "power", args: ["value": .number((Double(power) ?? 0) / 100)], valid: validNumber(power, range: 1...2000) && client.state["capabilities"]["power"].flag)
                 TextField("Maximum RPM (100–30000)", text: $rpm).keyboardType(.numberPad).textFieldStyle(.roundedBorder).accessibilityLabel("Maximum RPM")
+                    .focused($focused, equals: .rpm)
                 actionButton("Apply RPM limit", action: "rpm", args: ["value": .number(Double(rpm) ?? 0)], valid: validNumber(rpm, range: 100...30000))
                 actionButton("Enable clutch protection", action: "clutch", args: ["enabled": .bool(true)])
                 actionButton("Disable clutch protection", action: "clutch", args: ["enabled": .bool(false)])
@@ -127,6 +127,7 @@ struct DashboardView: View {
                 Text("Gearbox").font(.title3.bold())
                 Text("Forward ratios, separated by spaces. Transmission support and readback are enforced by the game.").font(.footnote).foregroundStyle(.secondary)
                 TextField("3.5 2.1 1.4 1.0 0.8", text: $ratios, axis: .vertical).textFieldStyle(.roundedBorder).accessibilityLabel("Forward gear ratios")
+                    .focused($focused, equals: .ratios)
                 actionButton("Apply ratios", action: "gears", args: ["ratios": .string(ratios)], valid: !ratios.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && ratios.utf8.count <= 24000)
             }
             panel {
@@ -147,7 +148,7 @@ struct DashboardView: View {
                 }.buttonStyle(.glass).disabled(!client.canBrowse)
                 Spacer()
             }
-            Text("Your PC's vehicle library. Photos are not transferred in this first version.").font(.footnote).foregroundStyle(.secondary)
+            Text("Your PC's vehicle library. Thumbnails load securely on demand; vehicle assets stay on the PC.").font(.footnote).foregroundStyle(.secondary)
             let items = model.isEmpty ? client.snapshot["catalog"].array : (client.snapshot["configsModel"].text == model ? client.snapshot["configs"].array : [])
             if items.isEmpty { ContentUnavailableView("No vehicles loaded", systemImage: "car.2", description: Text("Connect a game, then refresh the library.")) }
             LazyVGrid(columns: columns, spacing: 12) {
@@ -157,18 +158,20 @@ struct DashboardView: View {
                         else { configuration = item["id"].text }
                     } label: {
                         VStack(alignment: .leading, spacing: 12) {
-                            Image(systemName: "car.side").font(.system(size: 36)).foregroundStyle(.secondary).frame(maxWidth: .infinity).frame(height: 80)
+                            thumbnail(item)
                             Text(item["name"].text.isEmpty ? item["id"].display : item["name"].text).font(.headline).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading)
                             Text(configuration == item["id"].text ? "Selected" : "PC catalog").font(.caption).foregroundStyle(.secondary)
                         }.padding(16).background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 16))
                             .overlay(RoundedRectangle(cornerRadius: 16).stroke(configuration == item["id"].text ? Color.yellow : .clear))
                     }.buttonStyle(.plain).disabled(!client.canBrowse)
+                        .task(id: item["photo"].text + item["modelPhoto"].text) { client.requestThumbnail(item) }
                 }
             }
             HStack {
                 actionButton("Spawn", action: "spawn", args: ["config": .string(configuration)], valid: !configuration.isEmpty)
                 actionButton("Replace", action: "replace", args: ["config": .string(configuration)], valid: !configuration.isEmpty)
             }
+            if !client.canSpawn { Text(client.state["policyReason"].text.isEmpty ? "Load a map and stop before spawning. If a vehicle is selected, it must be yours." : client.state["policyReason"].text).font(.footnote).foregroundStyle(.secondary) }
         }
     }
 
@@ -198,14 +201,28 @@ struct DashboardView: View {
     private var connect: some View {
         VStack(alignment: .leading, spacing: 20) {
             panel {
+                Toggle("USB cable mode", isOn: $client.usbMode).disabled(client.connected)
+                Text(client.usbMode ? "Select iPhone USB in PC Connect. Keep this app open, unlock and trust the PC over USB, then pair or reconnect. The cable carries the same pinned TLS connection; no Wi-Fi firewall rule is needed." : "Private Wi-Fi / LAN mode. Use USB cable mode to avoid the Wi-Fi route.").font(.footnote).foregroundStyle(.secondary)
+            }
+            if let saved = client.remembered {
+                panel {
+                    Label("Remembered PC", systemImage: "checkmark.shield").font(.headline)
+                    Text(saved.host).font(.caption).foregroundStyle(.secondary)
+                    Button("Reconnect without pairing", systemImage: "link") { focused = nil; client.reconnect() }.buttonStyle(.glassProminent).disabled(client.connected)
+                    Button("Forget saved PC", systemImage: "trash") { client.forgetPC() }.buttonStyle(.glass)
+                }
+            }
+            panel {
                 Label("Connect to PC ABM", systemImage: "desktopcomputer").font(.title3.bold())
                 Text("1. Put your phone and PC on the same private Wi-Fi.\n2. Enable access in PC ABM → Connect and copy its pairing link.\n3. Paste it here, connect, then approve this iPhone on the PC.")
                 TextField("Device name", text: $device).textFieldStyle(.roundedBorder).textInputAutocapitalization(.words).accessibilityIdentifier("deviceNameInput")
+                    .focused($focused, equals: .device).submitLabel(.done).onSubmit { focused = nil }
                 TextField("abm://pair/…", text: $invitation, axis: .vertical)
                     .lineLimit(3...5).textFieldStyle(.roundedBorder).textInputAutocapitalization(.never).autocorrectionDisabled()
                     .privacySensitive().accessibilityLabel("Pairing link").accessibilityIdentifier("pairingLinkInput")
+                    .focused($focused, equals: .invitation)
                 Button("Connect & request PC approval", systemImage: "link") {
-                    client.pair(link: invitation, device: device); invitation = ""
+                    focused = nil; client.pair(link: invitation, device: device); invitation = ""
                 }
                 .buttonStyle(.glassProminent).frame(minHeight: 44)
                 .disabled(client.connected || invitation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
@@ -214,7 +231,7 @@ struct DashboardView: View {
             }
             panel {
                 Label("Private, encrypted, revocable", systemImage: "lock.shield").font(.headline)
-                Text("The link pins your PC's TLS certificate. Access requires PC approval and expires when disconnected. No cloud, saved password, discovery broadcast or automatic reconnect. Controls disable if updates stop or this app leaves the foreground. Never publish a pairing link or forward the PC port to the internet.")
+                Text("First pairing requires PC approval. If Remember device is selected there, a revocable credential is kept in this iPhone's Keychain. Reconnect works only while PC access is enabled; Forget devices on PC revokes it. No cloud or queued commands. Controls disable when updates stop or the app leaves the foreground. Never publish a link or forward the port.")
                     .font(.footnote).foregroundStyle(.secondary)
                 Text("Requires the Connect-enabled PC development build, not the published PC 0.12.0 release.").font(.footnote).foregroundStyle(.secondary)
             }
@@ -238,8 +255,16 @@ struct DashboardView: View {
         guard let value = Double(text), value.isFinite else { return false }; return range.contains(value)
     }
     private func actionButton(_ title: String, action: String, args: [String: JSONValue] = [:], valid: Bool = true, identifier: String = "") -> some View {
-        Button(title) { pending = GameRequest(title: title + "?", action: action, args: args, target: client.target) }
-            .buttonStyle(.glass).frame(minHeight: 44).disabled(!client.canChange || !valid)
+        Button(title) { focused = nil; client.command(action, args: args, frozenTarget: client.target) }
+            .buttonStyle(.glass).frame(minHeight: 44).disabled(!(action == "spawn" ? client.canSpawn : client.canChange) || !valid)
             .accessibilityIdentifier(identifier.isEmpty ? action : identifier)
+    }
+    @ViewBuilder private func thumbnail(_ item: JSONValue) -> some View {
+        let exact = client.thumbnails[item["photo"].text].flatMap { $0.isEmpty ? nil : $0 }
+        let data = exact ?? client.thumbnails[item["modelPhoto"].text]
+        if let data, let image = UIImage(data: data) {
+            Image(uiImage: image).resizable().scaledToFit().frame(maxWidth: .infinity).frame(height: 100).accessibilityLabel("Vehicle preview").accessibilityIdentifier("vehiclePreview")
+            if exact == nil && !model.isEmpty { Text("Model preview").font(.caption2).foregroundStyle(.secondary) }
+        } else { Image(systemName: "car.side").font(.system(size: 36)).foregroundStyle(.secondary).frame(maxWidth: .infinity).frame(height: 100) }
     }
 }

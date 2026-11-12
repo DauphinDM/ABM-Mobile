@@ -34,7 +34,7 @@ final class AppTests: XCTestCase {
         image.name = "Native Workshop — offline safety"
         image.lifetime = .keepAlways; add(image)
     }
-    func testPinnedTlsApprovalAndConfirmedCommand() throws {
+    func testPinnedTlsGaragePhotoSpawnDirectApplyAndKeyboard() throws {
         guard let url = Bundle(for: Self.self).url(forResource: "TestConfig", withExtension: "json") else { throw XCTSkip("Run with the isolated local TLS fixture.") }
         let config = try JSONSerialization.jsonObject(with: Data(contentsOf: url)) as! [String: String]
         let app = launch(invitation: config["invitation"]!)
@@ -42,15 +42,28 @@ final class AppTests: XCTestCase {
         XCTAssertTrue(pair.waitForExistence(timeout: 10)); pair.tap()
         app.navigationBars.firstMatch.tap() // Deliver an interruption handler if iOS requests LAN permission.
         XCTAssertTrue(app.staticTexts["Paired with PC"].waitForExistence(timeout: 20))
-        app.tabBars.buttons["Car"].tap(); app.swipeUp()
+        app.tabBars.buttons["Garage"].tap()
+        let model = app.buttons.containing(.staticText, identifier: "Fixture car").firstMatch
+        XCTAssertTrue(model.waitForExistence(timeout: 10)); model.tap()
+        let configuration = app.buttons.containing(.staticText, identifier: "Factory test").firstMatch
+        XCTAssertTrue(configuration.waitForExistence(timeout: 10)); configuration.tap()
+        XCTAssertTrue(app.images["vehiclePreview"].firstMatch.waitForExistence(timeout: 10))
+        app.buttons["spawn"].tap()
+        XCTAssertFalse(app.buttons["confirmGameAction"].exists)
+        app.tabBars.buttons["Car"].tap()
+        let power = app.textFields["Power percent"]
+        XCTAssertTrue(power.waitForExistence(timeout: 5)); power.tap()
+        power.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3) + "200")
+        let done = app.buttons["dismissKeyboard"].firstMatch
+        XCTAssertTrue(done.waitForExistence(timeout: 5)); done.tap()
+        XCTAssertFalse(app.keyboards.firstMatch.exists)
+        app.buttons["power"].tap()
+        XCTAssertFalse(app.buttons["confirmGameAction"].exists)
+        app.swipeUp()
         let repair = app.buttons["repairVehicle"]
         XCTAssertTrue(repair.waitForExistence(timeout: 5)); XCTAssertTrue(repair.isEnabled)
         repair.tap()
-        // SwiftUI's native confirmation sheet exposes a nested pair of accessibility
-        // buttons for the same action. Both represent Send to PC, not two actions.
-        let confirm = app.buttons.matching(identifier: "confirmGameAction").firstMatch
-        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
-        confirm.tap()
+        XCTAssertFalse(app.buttons["confirmGameAction"].exists)
         // Fixture stops snapshots after this command. The two-second watchdog must
         // clear telemetry and disable mutations rather than reconnect or queue.
         let disabled = NSPredicate(format: "enabled == false")

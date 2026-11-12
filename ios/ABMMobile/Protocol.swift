@@ -43,6 +43,7 @@ struct Invitation: Decodable {
     let port: UInt16
     let sha256: String
     let secret: String
+    let transport: String?
 
     static func parse(_ link: String) throws -> Invitation {
         guard link.utf8.count <= 2048, link.hasPrefix("abm://pair/") else { throw WireError.invitation }
@@ -97,6 +98,11 @@ enum CompanionWire {
         guard let speed = state["telemetry"]["speed"].number, speed.isFinite, speed >= 0, speed <= 1 else { return false }
         return connected && !busy && state["connected"].flag && state["controlsAvailable"].flag && state["vehicleOwned"].flag
             && state["sandboxAllowed"].flag && !state["joining"].flag && !state["policyCleanup"].flag
+    }
+    static func spawnable(_ state: JSONValue, connected: Bool, busy: Bool) -> Bool {
+        guard connected, !busy, state["connected"].flag, state["controlsAvailable"].flag, state["sandboxAllowed"].flag,
+              !state["joining"].flag, !state["policyCleanup"].flag, !state["map"].text.isEmpty else { return false }
+        return state["vehicleId"] == .null || mutable(state, connected: connected, busy: busy)
     }
     static func serverAddress(_ state: JSONValue) -> String {
         let host = state["serverIp"].text

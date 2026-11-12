@@ -1,5 +1,6 @@
 import XCTest
 import CryptoKit
+import Network
 @testable import ABMMobile
 
 final class ProtocolTests: XCTestCase {
@@ -56,6 +57,54 @@ final class ProtocolTests: XCTestCase {
             XCTAssertFalse(CompanionWire.mutable(.object(fields), connected: true, busy: false))
         }
         XCTAssertEqual(CompanionWire.serverAddress(.object(["serverIp": .string("2001:db8::7"), "serverPort": .number(30814)])), "[2001:db8::7]:30814")
+    }
+    func testSpawnIntoEmptyMapDoesNotRequireAnExistingVehicle() {
+        var fields: [String: JSONValue] = ["connected": .bool(true), "controlsAvailable": .bool(true), "sandboxAllowed": .bool(true), "map": .string("gridmap_v2")]
+        XCTAssertTrue(CompanionWire.spawnable(.object(fields), connected: true, busy: false))
+        XCTAssertFalse(CompanionWire.mutable(.object(fields), connected: true, busy: false))
+        for key in ["sandboxAllowed", "controlsAvailable", "connected"] {
+            var blocked = fields; blocked[key] = .bool(false)
+            XCTAssertFalse(CompanionWire.spawnable(.object(blocked), connected: true, busy: false))
+        }
+        fields["vehicleId"] = .number(42)
+        XCTAssertFalse(CompanionWire.spawnable(.object(fields), connected: true, busy: false))
+        fields["vehicleOwned"] = .bool(true); fields["telemetry"] = .object(["speed": .number(0)])
+        XCTAssertTrue(CompanionWire.spawnable(.object(fields), connected: true, busy: false))
+        fields["telemetry"] = .object(["speed": .number(3)])
+        XCTAssertFalse(CompanionWire.spawnable(.object(fields), connected: true, busy: false))
+    }
+    @MainActor func testUsbRelayCarriesBytesBothWaysAndStops() async throws {
+        let relay = USBRelay(); XCTAssertTrue(relay.start())
+        let cable = NWConnection(host: "127.0.0.1", port: 44446, using: .tcp)
+        let local = NWConnection(host: "127.0.0.1", port: 44447, using: .tcp)
+        defer { cable.cancel(); local.cancel(); relay.stop() }
+        let ready = expectation(description: "Both loopback connections ready"); ready.expectedFulfillmentCount = 2
+        for connection in [cable, local] {
+            connection.stateUpdateHandler = { state in if case .ready = state { ready.fulfill() } }
+            connection.start(queue: .main)
+        }
+        await fulfillment(of: [ready], timeout: 5)
+        let forward = expectation(description: "TLS bytes are not interpreted")
+        let backward = expectation(description: "Reply bytes reach cable")
+        local.receive(minimumIncompleteLength: 5, maximumLength: 5) { data, _, _, error in
+            XCTAssertNil(error); XCTAssertEqual(data, Data([22,3,3,0,0])); forward.fulfill()
+        }
+        cable.receive(minimumIncompleteLength: 4, maximumLength: 4) { data, _, _, error in
+            XCTAssertNil(error); XCTAssertEqual(data, Data("pong".utf8)); backward.fulfill()
+        }
+        cable.send(content: Data([22,3,3,0,0]), completion: .contentProcessed { XCTAssertNil($0) })
+        local.send(content: Data("pong".utf8), completion: .contentProcessed { XCTAssertNil($0) })
+        await fulfillment(of: [forward, backward], timeout: 5)
+    }
+    func testRememberedPCUsesAnIsolatedKeychainRecordAndCanBeRevoked() {
+        let account = "test-" + UUID().uuidString
+        defer { _ = RememberedPC.forget(account: account) }
+        let pc = RememberedPC(host: "192.168.1.20", port: 44445, pin: String(repeating: "a", count: 64), id: String(repeating: "b", count: 32), token: String(repeating: "c", count: 64), name: "Test phone")
+        XCTAssertNil(RememberedPC.load(account: account))
+        XCTAssertTrue(pc.save(account: account))
+        XCTAssertEqual(RememberedPC.load(account: account)?.token, pc.token)
+        XCTAssertTrue(RememberedPC.forget(account: account))
+        XCTAssertNil(RememberedPC.load(account: account))
     }
     @MainActor func testNoOfflineCommandQueue() {
         let client = CompanionClient()
