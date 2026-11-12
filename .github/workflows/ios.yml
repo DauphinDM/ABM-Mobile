@@ -51,11 +51,25 @@ jobs:
           python3 tests/ios_simulator_test.py
           python3 bin/prepare-ios-simulator.py
       - name: Start isolated TLS fixture
+        timeout-minutes: 3
         run: |
           ABM_IOS_COMMAND_MARKER="$RUNNER_TEMP/abm-ios-command-ok" python3 tests/ios_tls_fixture.py > "$RUNNER_TEMP/abm-ios-fixture.log" 2>&1 &
-          echo $! > "$RUNNER_TEMP/abm-ios-fixture.pid"
-          for i in {1..40}; do test -f ios/ABMMobileUITests/Resources/TestConfig.json && break; sleep 0.25; done
-          test -f ios/ABMMobileUITests/Resources/TestConfig.json
+          fixture=$!
+          echo "$fixture" > "$RUNNER_TEMP/abm-ios-fixture.pid"
+          for i in {1..120}; do
+            test -f ios/ABMMobileUITests/Resources/TestConfig.json && break
+            if ! kill -0 "$fixture" 2>/dev/null; then
+              cat "$RUNNER_TEMP/abm-ios-fixture.log"
+              echo 'TLS fixture exited before becoming ready.' >&2
+              exit 1
+            fi
+            sleep 0.5
+          done
+          if ! test -f ios/ABMMobileUITests/Resources/TestConfig.json; then
+            cat "$RUNNER_TEMP/abm-ios-fixture.log"
+            echo 'TLS fixture did not become ready within the bounded startup wait.' >&2
+            exit 1
+          fi
       - name: Generate project and test native app
         run: |
           cd ios
@@ -87,6 +101,7 @@ jobs:
             dist/*
             build/ios-tests.xcresult
             build/ios-screenshots
+            ${{ runner.temp }}/abm-ios-fixture.log
           if-no-files-found: warn
       - name: Stop fixture
         if: always()
