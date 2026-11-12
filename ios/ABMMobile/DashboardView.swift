@@ -3,6 +3,7 @@ import UIKit
 
 struct DashboardView: View {
     @ObservedObject var client: CompanionClient
+    @StateObject private var updates=UpdateChecker()
     @State private var tab = 4
     @State private var metric = true
     @State private var power = "100"
@@ -25,6 +26,7 @@ struct DashboardView: View {
             Tab("Session", systemImage: "person.2", value: 3) { page("Session") { session } }
             Tab("Connect", systemImage: "link", value: 4) { page("Connect") { connect } }
         }
+        .task { await updates.monitor() }
         .onChange(of: client.target) { _, _ in
             focused = nil; power = "100"; rpm = ""; ratios = ""; configuration = ""; model = ""
         }
@@ -228,6 +230,20 @@ struct DashboardView: View {
                 .disabled(client.connected || invitation.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 .accessibilityIdentifier("pairPhone")
                 Button("Disconnect", systemImage: "xmark.circle") { client.disconnect() }.buttonStyle(.glass).frame(minHeight: 44)
+            }
+            panel {
+                Label("App updates", systemImage: "arrow.down.circle").font(.headline)
+                Toggle("Check automatically at startup and daily", isOn: $updates.automatic)
+                    .onChange(of: updates.automatic) { _, enabled in if enabled { Task { await updates.checkIfDue() } } }
+                Toggle("Include preview releases", isOn: $updates.previews).disabled(updates.busy)
+                Text("Installed: \(updates.current)\n\(updates.message)").font(.footnote).foregroundStyle(.secondary)
+                Button("Check now", systemImage: "arrow.clockwise") { focused=nil; Task { await updates.check() } }
+                    .buttonStyle(.glass).disabled(updates.busy).accessibilityIdentifier("checkAppUpdates")
+                if updates.busy { ProgressView() }
+                if updates.release != nil {
+                    Button("Open update / release notes", systemImage: "safari") { updates.openRelease() }.buttonStyle(.glassProminent)
+                }
+                Text("Checks contact GitHub, which receives your IP address. iOS cannot silently install an IPA. Download the new IPA and re-sign it with your existing identity, or use TestFlight/App Store once configured. No signing keys are sent to ABM, and no game control is interrupted automatically.").font(.footnote).foregroundStyle(.secondary)
             }
             panel {
                 Label("Private, encrypted, revocable", systemImage: "lock.shield").font(.headline)

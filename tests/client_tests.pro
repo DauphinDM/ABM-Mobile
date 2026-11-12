@@ -5,4 +5,6 @@ TEMPLATE = app
 INCLUDEPATH += ../src
 SOURCES += client_tests.cpp ../src/remoteclient.cpp
 HEADERS += ../src/remoteclient.h
+SOURCES += ../src/appupdates.cpp
+HEADERS += ../src/appupdates.h
 RESOURCES += ../src/resources.qrc

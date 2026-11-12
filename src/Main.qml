@@ -160,6 +160,7 @@ ApplicationWindow {
                         }
                         Button { Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Disconnect"); onClicked: remote.disconnectPhone() }
                     }
+                    UpdatesPane { Layout.fillWidth: true; updater: typeof appUpdates !== "undefined" ? appUpdates : null }
                     SectionPanel { Layout.fillWidth: true
                         PlainLabel { text: qsTr("Private, encrypted, revocable"); color: "#edf1f7"; font.pixelSize: 16 }
                         PlainLabel { Layout.fillWidth: true; text: qsTr("First pairing requires PC approval. If Remember device is selected on PC, a credential is stored in this app's private storage (Android backup is disabled). Reconnect only works while PC access is enabled; Forget devices on PC revokes it. Android USB: select Android USB on PC, authorize adb over your cable, and paste its loopback link. No commands are queued offline. Never forward the port."); color: "#a0aabb"; font.pixelSize: 13 }

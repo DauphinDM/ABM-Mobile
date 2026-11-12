@@ -1,5 +1,7 @@
 # Security
 
+Update checks are opt-in HTTPS requests to the official GitHub repository, never URLs supplied by the PC/game. Android verifies bounded release-asset hashes before atomic acceptance and before granting a read-only single-APK URI to the OS installer. iOS only opens official release instructions; it cannot silently install an IPA and never collects Apple signing credentials. No automatic uninstall, remote update command or in-game interruption is provided. Repository compromise is outside checksum protection; see [update behavior](docs/updates.md).
+
 This is an experimental local-network companion, not an Internet-facing service. Pair only on trusted private networks, keep invitations private, approve only your own request, and stop PC access when finished. Do not forward its port or expose the game receiver.
 
 Both clients pin the invited certificate before sending credentials. The native iOS client also disconnects on backgrounding; no connection is restored automatically. Simulator fixtures contain temporary, synthetic data only; never substitute production invitations or keys in committed test resources.

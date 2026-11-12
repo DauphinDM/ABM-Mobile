@@ -4,6 +4,8 @@ TARGET = abm-mobile
 TEMPLATE = app
 SOURCES += src/main.cpp src/remoteclient.cpp
 HEADERS += src/remoteclient.h
+SOURCES += src/appupdates.cpp
+HEADERS += src/appupdates.h
 RESOURCES += src/resources.qrc
 android {
     ANDROID_PACKAGE_SOURCE_DIR = $$PWD/android

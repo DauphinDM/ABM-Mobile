@@ -4,6 +4,11 @@
 *.user
 *.apk
 *.aab
+*.ipa
+*.keystore
+*.jks
+*.p12
+*.mobileprovision
 /android/assets/notices/
 ios/*.xcodeproj/
 ios/Generated/

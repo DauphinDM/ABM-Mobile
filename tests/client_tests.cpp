@@ -14,11 +14,15 @@
 #include <QBuffer>
 #include <QImage>
 #include "remoteclient.h"
+#include "update_test_cases.h"
 
 class ClientTests : public QObject {
     Q_OBJECT
     QTemporaryDir storage;
 private slots:
+    void updateReleaseSelectionIsScoped() { UpdateTests::selection(); }
+    void updateDownloadsAreBoundedAndVerified() { UpdateTests::transfers(); }
+    void updatePanelUsesExplicitCheck() { UpdateTests::panel(); }
     void init() { QVERIFY(storage.isValid()); qputenv("ABM_MOBILE_CONFIG_DIR",storage.filePath(QString::fromLatin1(QTest::currentTestFunction())).toUtf8()); }
     void validatesInvitationsAndNeverQueuesOffline() {
         RemoteClient client;

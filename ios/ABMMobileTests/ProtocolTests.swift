@@ -5,6 +5,29 @@ import Security
 @testable import ABMMobile
 
 final class ProtocolTests: XCTestCase {
+    @MainActor func testUpdateChecksAreOptInAndReleaseLinksAreOfficial() throws {
+        let suite="abm-update-test-"+UUID().uuidString
+        let defaults=try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let checker=UpdateChecker(defaults: defaults, current: "0.1.0")
+        XCTAssertFalse(checker.automatic); XCTAssertFalse(checker.previews); XCTAssertFalse(checker.busy)
+        checker.automatic=true; checker.previews=true
+        let restored=UpdateChecker(defaults: defaults, current: "0.1.0")
+        XCTAssertTrue(restored.automatic); XCTAssertTrue(restored.previews)
+        func feed(_ tag: String="v0.2.0", page: String?=nil, preview: Bool=false, draft: Bool=false) throws -> Data {
+            try JSONSerialization.data(withJSONObject: [["tag_name":tag,"html_url":page ?? "https://github.com/DauphinDM/ABM-Mobile/releases/tag/"+tag,"prerelease":preview,"draft":draft]])
+        }
+        XCTAssertEqual(UpdateChecker.select(try feed(), current: "0.1.0", previews: false)?.version,"0.2.0")
+        XCTAssertNil(UpdateChecker.select(try feed(), current: "0.2.0", previews: true))
+        XCTAssertNil(UpdateChecker.select(try feed(draft: true), current: "0.1.0", previews: true))
+        XCTAssertNil(UpdateChecker.select(try feed(preview: true), current: "0.1.0", previews: false))
+        XCTAssertNotNil(UpdateChecker.select(try feed("v0.2.0-beta.1", preview: true), current: "0.1.0", previews: true))
+        for page in ["http://github.com/DauphinDM/ABM-Mobile/releases/tag/v0.2.0", "https://github.com/attacker/ABM-Mobile/releases/tag/v0.2.0", "https://example.com/update"] {
+            XCTAssertNil(UpdateChecker.select(try feed(page: page), current: "0.1.0", previews: true))
+        }
+        XCTAssertNil(UpdateChecker.select(Data(repeating: 32,count: 1_048_577), current: "0.1.0", previews: true))
+        XCTAssertNil(UpdateChecker.numbers("1.2.-3")); XCTAssertNil(UpdateChecker.numbers("1.2.999999999999999999999999999"))
+    }
     private func link(host: String = "192.168.1.20", port: JSONValue = .number(44445), version: JSONValue = .number(1)) throws -> String {
         let payload: JSONValue = .object(["v": version, "host": .string(host), "port": port, "sha256": .string(String(repeating: "a", count: 64)), "secret": .string(String(repeating: "b", count: 64))])
         return "abm://pair/" + (try JSONEncoder().encode(payload)).base64EncodedString().replacingOccurrences(of: "=", with: "").replacingOccurrences(of: "+", with: "-").replacingOccurrences(of: "/", with: "_")

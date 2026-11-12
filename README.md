@@ -6,6 +6,8 @@ Android and native iOS companions for [PC ABM](https://github.com/DauphinDM/ABM)
 
 ## Connect your phone
 
+Development builds include **Connect → App updates**: opt-in release checks, verified Android downloads and an explicit installer prompt. iOS opens official release instructions and still requires local IPA signing. See [update limits and publishing](docs/updates.md). CI artifacts alone do not trigger updates.
+
 1. Put both devices on the same trusted private Wi-Fi network.
 2. Open **Connect** in the updated PC app, select its LAN IPv4 address and enable phone access. First-time certificate generation requires `openssl` on the PC's PATH.
 3. Privately transfer the temporary pairing link to your phone. Treat it as a password; it expires after two minutes. There is no QR scanner in this version.
