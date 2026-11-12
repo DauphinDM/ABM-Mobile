@@ -10,7 +10,7 @@ jobs:
       - run: brew install xcodegen
       - name: Start isolated TLS fixture
         run: |
-          python3 tests/ios_tls_fixture.py > "$RUNNER_TEMP/abm-ios-fixture.log" 2>&1 &
+          ABM_IOS_COMMAND_MARKER="$RUNNER_TEMP/abm-ios-command-ok" python3 tests/ios_tls_fixture.py > "$RUNNER_TEMP/abm-ios-fixture.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/abm-ios-fixture.pid"
           for i in {1..40}; do test -f ios/ABMMobileUITests/Resources/TestConfig.json && break; sleep 0.25; done
           test -f ios/ABMMobileUITests/Resources/TestConfig.json
@@ -19,6 +19,7 @@ jobs:
           cd ios
           xcodegen generate
           xcodebuild test -project ABMMobile.xcodeproj -scheme ABMMobile -destination 'platform=iOS Simulator,name=iPhone 17' -derivedDataPath ../build/ios -resultBundlePath ../build/ios-tests.xcresult CODE_SIGNING_ALLOWED=NO
+          test -f "$RUNNER_TEMP/abm-ios-command-ok"
       - name: Package simulator app (not an installable iPhone IPA)
         run: |
           mkdir -p dist

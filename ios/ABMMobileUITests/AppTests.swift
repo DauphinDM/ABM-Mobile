@@ -21,6 +21,9 @@ final class AppTests: XCTestCase {
         for name in ["Drive", "Car", "Garage", "Session", "Connect"] {
             app.tabBars.buttons[name].tap()
             XCTAssertTrue(app.navigationBars.element.waitForExistence(timeout: 3))
+            let image = XCTAttachment(screenshot: app.screenshot())
+            image.name = "Native \(name)"
+            image.lifetime = .keepAlways; add(image)
         }
         app.tabBars.buttons["Car"].tap()
         app.swipeUp()
@@ -43,8 +46,11 @@ final class AppTests: XCTestCase {
         let repair = app.buttons["repairVehicle"]
         XCTAssertTrue(repair.waitForExistence(timeout: 5)); XCTAssertTrue(repair.isEnabled)
         repair.tap()
-        XCTAssertTrue(app.buttons["confirmGameAction"].waitForExistence(timeout: 5))
-        app.buttons["confirmGameAction"].tap()
+        // SwiftUI's native confirmation sheet exposes a nested pair of accessibility
+        // buttons for the same action. Both represent Send to PC, not two actions.
+        let confirm = app.buttons.matching(identifier: "confirmGameAction").firstMatch
+        XCTAssertTrue(confirm.waitForExistence(timeout: 5))
+        confirm.tap()
         // Fixture stops snapshots after this command. The two-second watchdog must
         // clear telemetry and disable mutations rather than reconnect or queue.
         let disabled = NSPredicate(format: "enabled == false")

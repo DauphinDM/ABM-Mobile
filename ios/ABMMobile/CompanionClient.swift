@@ -137,6 +137,9 @@ struct GameRequest: Identifiable {
         else if !approved && started > 0 && now - started > 120 { disconnect("Pairing timed out.") }
     }
     func command(_ action: String, args: [String: JSONValue] = [:], frozenTarget: JSONValue? = nil) {
+        // A busy main run loop can delay the timer; never use stale telemetry
+        // merely because its scheduled watchdog callback has not run yet.
+        checkFreshness()
         let reads = ["catalog", "configs"]
         let changes = ["power", "rpm", "clutch", "gears", "repair", "extinguish", "stability", "fullReset", "switch", "spawn", "replace", "resetTrip"]
         guard let socket = connection, connected, canBrowse, reads.contains(action) || (changes.contains(action) && canChange),

@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import json
+import os
 from pathlib import Path
 import secrets
 import socket
@@ -55,7 +56,8 @@ def handle(raw):
                     else:
                         assert value["action"] == "repair" and value["target"] == target and value["seq"] == 1
                         send({"kind": "receipt", "seq": 1, "message": "Fixture accepted repair"})
-                        (folder / "command-ok").touch(); stale = True
+                        Path(os.environ.get("ABM_IOS_COMMAND_MARKER", str(folder / "command-ok"))).touch()
+                        stale = True
                 if paired and not stale and time.monotonic() - last > .25:
                     send(snapshot); last = time.monotonic()
     except (ssl.SSLError, OSError): pass
