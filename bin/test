@@ -1,0 +1,9 @@
+#!/bin/sh
+set -eu
+ROOT="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+"$ROOT/bin/build"
+mkdir -p "$ROOT/build/tests"
+cd "$ROOT/build/tests"
+"${QMAKE:-qmake6}" "$ROOT/tests/client_tests.pro"
+make -j"${JOBS:-4}"
+QT_QPA_PLATFORM=offscreen QT_QUICK_BACKEND=software QT_FORCE_STDERR_LOGGING=1 ./client_tests -nocrashhandler

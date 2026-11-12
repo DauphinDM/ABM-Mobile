@@ -1,0 +1,7 @@
+/build/
+/vendor/
+/dist/
+*.user
+*.apk
+*.aab
+/android/assets/notices/

@@ -1,0 +1,54 @@
+name: Mobile builds
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  host-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.3'
+          cache: true
+      - run: sudo apt-get update && sudo apt-get install -y fonts-noto-core openssl
+      - run: QMAKE=qmake ./bin/test
+  android:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+      - run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0' 'ndk;26.1.10909125'
+      - uses: jurplel/install-qt-action@v4
+        id: qt
+        with:
+          version: '6.8.3'
+          target: android
+          arch: android_arm64_v8a
+          extra: --autodesktop
+          cache: true
+      - name: Fetch pinned Android TLS libraries and license notices
+        run: ./bin/fetch-android-openssl
+      - name: Build development APK
+        env:
+          QT_ANDROID: ${{ steps.qt.outputs.qt-root-dir }}
+        run: |
+          export ANDROID_NDK_ROOT="$ANDROID_HOME/ndk/26.1.10909125"
+          mkdir -p build
+          cd build
+          "$QT_ANDROID/bin/qmake" ../abm-mobile.pro CONFIG+=release CONFIG-=debug
+          make -j4
+          "$QT_ANDROID/bin/androiddeployqt" --input android-abm-mobile-deployment-settings.json --output android-build --android-platform android-35 --gradle
+          mkdir -p ../dist
+          cp android-build/build/outputs/apk/debug/*.apk ../dist/ABM-Mobile-0.1.0-Android-arm64-debug.apk
+          cd ../dist
+          sha256sum *.apk > SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ABM-Mobile-Android-arm64-development
+          path: dist/*
+          if-no-files-found: error
