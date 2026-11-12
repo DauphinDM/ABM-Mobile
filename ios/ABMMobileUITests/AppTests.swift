@@ -51,9 +51,12 @@ final class AppTests: XCTestCase {
         app.buttons["spawn"].tap()
         XCTAssertFalse(app.buttons["confirmGameAction"].exists)
         app.tabBars.buttons["Car"].tap()
+        XCTAssertTrue(app.navigationBars["Workshop"].waitForExistence(timeout: 5))
         let power = app.textFields["Power percent"]
         XCTAssertTrue(power.waitForExistence(timeout: 5)); power.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Exercise the software keyboard, including its dismissal toolbar.")
         power.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3) + "200")
+        XCTAssertEqual(power.value as? String, "200")
         let done = app.buttons["dismissKeyboard"].firstMatch
         XCTAssertTrue(done.waitForExistence(timeout: 5)); done.tap()
         XCTAssertFalse(app.keyboards.firstMatch.exists)

@@ -36,6 +36,9 @@ def main():
     if not kind:
         raise SystemExit('No supported iPhone simulator device type.')
     device=run('xcrun','simctl','create','ABM-CI-'+os.environ.get('GITHUB_RUN_ID','local'),kind,selected)
+    # Fresh runners can attach a virtual hardware keyboard. Our UI test must
+    # exercise the software keyboard and its Done toolbar, not bypass them.
+    subprocess.run(['defaults','write','com.apple.iphonesimulator','ConnectHardwareKeyboard','-bool','false'],check=True)
     subprocess.run(['xcrun','simctl','boot',device],check=True)
     subprocess.run(['xcrun','simctl','bootstatus',device,'-b'],check=True)
     with open(os.environ['GITHUB_ENV'],'a') as env:
