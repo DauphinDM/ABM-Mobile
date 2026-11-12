@@ -13,7 +13,15 @@ import zipfile
 
 def png_size(data):
     assert data[:8] == b'\x89PNG\r\n\x1a\n', 'Invalid PNG'
-    return struct.unpack_from('>II', data, 16)
+    offset = 8
+    while offset + 12 <= len(data):
+        length, kind = struct.unpack_from('>I4s', data, offset)
+        assert offset + length + 12 <= len(data), 'Truncated PNG chunk'
+        if kind == b'IHDR':
+            assert length == 13
+            return struct.unpack_from('>II', data, offset + 8)
+        offset += length + 12  # Xcode can add a CgBI chunk before IHDR.
+    raise AssertionError('Missing PNG image header')
 
 
 def check_icons():
@@ -59,7 +67,11 @@ def check_ipa(path):
                 assert any(n.startswith(prefix + stem) and n.endswith('.png') for n in names), stem
         pngs = [archive.read(n) for n in names if n.startswith(prefix) and n.endswith('.png')]
         dimensions = {png_size(data) for data in pngs}
-        assert {(120, 120), (180, 180), (152, 152), (167, 167)} <= dimensions
+        # actool emits these fallback PNGs; 180/167-pixel renditions can be
+        # stored only inside Assets.car, not as separate files. check_icons()
+        # validates their source sizes; never reject a valid compiled catalog
+        # for not duplicating those renditions outside it.
+        assert {(120, 120), (152, 152)} <= dimensions, f'Missing fallback icons: {dimensions}'
         executable_path = prefix + info['CFBundleExecutable']
         assert archive.getinfo(executable_path).external_attr >> 16 & stat.S_IXUSR
         binary = archive.read(executable_path)

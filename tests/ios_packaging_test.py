@@ -7,8 +7,9 @@ import struct
 import tempfile
 import unittest
 import zipfile
+import zlib
 
-from verify_ios_ipa import check_icons, check_ipa
+from verify_ios_ipa import check_icons, check_ipa, png_size
 
 
 class DevicePackagingTests(unittest.TestCase):
@@ -52,12 +53,27 @@ class DevicePackagingTests(unittest.TestCase):
         self.verify(self.bundle())
 
     def test_missing_resources_rejected(self):
-        for name in ['Assets.car', '_CodeSignature/CodeResources', 'AppIcon-ipad-83.5@2x.png']:
+        for name in ['Assets.car', '_CodeSignature/CodeResources', 'AppIcon-ipad-76@2x.png']:
             with self.subTest(name=name):
                 files = self.bundle()
                 del files[name]
                 with self.assertRaises(AssertionError):
                     self.verify(files)
+
+    def test_high_density_renditions_can_live_only_in_asset_catalog(self):
+        files = self.bundle()
+        del files['AppIcon-iphone-60@3x.png']
+        del files['AppIcon-ipad-83.5@2x.png']
+        self.verify(files)
+
+    def test_apple_png_chunk_before_image_header(self):
+        data = self.bundle()['AppIcon-iphone-60@2x.png']
+        payload = b'\x40\xa0\x60\x82'
+        chunk = struct.pack('>I', len(payload)) + b'CgBI' + payload
+        chunk += struct.pack('>I', zlib.crc32(b'CgBI' + payload))
+        self.assertEqual(png_size(data[:8] + chunk + data[8:]), (120, 120))
+        with self.assertRaises(AssertionError):
+            png_size(data[:24])
 
     def test_incorrect_metadata_rejected(self):
         for key, value in [('MinimumOSVersion', '10.0'), ('CFBundleVersion', '1'),
