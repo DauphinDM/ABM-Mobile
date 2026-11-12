@@ -29,6 +29,8 @@ Item {
                 required property int index
                 readonly property bool active: dock.currentPage === index
                 Layout.fillWidth: true; Layout.fillHeight: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: dock.vertical ? 144 : 1
                 padding: dock.vertical ? 12 : 4
                 text: dock.labels[index]
                 Accessible.role: Accessible.PageTab
@@ -45,7 +47,9 @@ Item {
                     }
                     PlainLabel {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         text: tab.text
+                        wrapMode: Text.NoWrap; elide: Text.ElideRight
                         horizontalAlignment: dock.vertical ? Text.AlignLeft : Text.AlignHCenter
                         color: tab.active ? "#f1f4f9" : "#a4adbd"
                         font.pixelSize: dock.width < 360 && !dock.vertical ? 11 : 13; font.weight: tab.active ? Font.DemiBold : Font.Normal
