@@ -18,7 +18,10 @@ final class AppTests: XCTestCase {
         let picker=app.buttons["workshopSection"]
         for _ in 0..<5 where !picker.isHittable { app.swipeDown() }
         XCTAssertTrue(picker.waitForExistence(timeout:5)); picker.tap()
-        app.buttons[name].tap()
+        let names=["Engine & protection","Handling & gearbox","World & recovery","Body · experimental","Presets & recovery"]
+        let index=names.firstIndex(of:name)!
+        let row=app.buttons["workshopGroup\(index)"]
+        XCTAssertTrue(row.waitForExistence(timeout:5)); XCTAssertTrue(row.isHittable); row.tap()
     }
     func testNativeTabsAndOfflineSafety() throws {
         let app = launch()

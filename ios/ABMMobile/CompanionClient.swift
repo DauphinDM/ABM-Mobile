@@ -177,7 +177,10 @@ import ImageIO
             guard case .object = value["state"], case .object = value["target"] else { disconnect("Invalid PC snapshot."); return }
             var merged = value.object
             for key in ["catalog","configs","configsModel"] where merged[key] == nil { merged[key] = snapshot[key] }
-            snapshot = .object(merged); connected = true; lastSnapshot = ProcessInfo.processInfo.systemUptime
+            let next=JSONValue.object(merged)
+            if next != snapshot { snapshot=next }
+            if !connected { connected=true }
+            lastSnapshot = ProcessInfo.processInfo.systemUptime
             staleSince = 0
             if message == "PC approved. Waiting for telemetry…" { message = "Connected. PC and game restrictions remain enforced." }
         case "receipt" where approved: message = String(value["message"].text.prefix(512))

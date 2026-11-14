@@ -4,6 +4,8 @@ import Charts
 struct WorkshopView: View {
     @ObservedObject var client: CompanionClient
     @State private var group = 0
+    @State private var choosingGroup = false
+    private let groupNames = ["Engine & protection","Handling & gearbox","World & recovery","Body · experimental","Presets & recovery"]
     @State private var values: [String:String] = [:]
     @State private var engineProtection = false
     @State private var beamProtection = false
@@ -34,13 +36,10 @@ struct WorkshopView: View {
         VStack(alignment: .leading, spacing: 16) {
             Text(ready ? "Stopped, owned vehicle. PC and game checks still apply." : (state["policyReason"].text.isEmpty ? "Connect a live game and stop an owned vehicle. Unsupported controls stay disabled." : state["policyReason"].text))
                 .font(.footnote).foregroundStyle(.secondary)
-            Picker("Workshop section",selection: $group) {
-                Text("Engine & protection").tag(0)
-                Text("Handling & gearbox").tag(1)
-                Text("World & recovery").tag(2)
-                Text("Body · experimental").tag(3)
-                Text("Presets & recovery").tag(4)
-            }.pickerStyle(.menu).accessibilityIdentifier("workshopSection")
+            Button { focused=nil; choosingGroup=true } label: {
+                HStack { Text(groupNames[group]); Spacer(); Image(systemName:"chevron.up.chevron.down") }
+                    .frame(maxWidth:.infinity,minHeight:44)
+            }.buttonStyle(.glass).accessibilityLabel("Workshop section: "+groupNames[group]).accessibilityIdentifier("workshopSection")
             action(workshop["persistence"].flag ? "Keep tuning on reset: ON" : "Keep tuning on reset: OFF", "persistence",
                    ["enabled":.bool(!workshop["persistence"].flag)], valid: !workshop["generation"].text.isEmpty)
             if !workshop["restoreStatus"].text.isEmpty { Text(workshop["restoreStatus"].text).font(.caption).foregroundStyle(.secondary) }
@@ -64,6 +63,9 @@ struct WorkshopView: View {
         .onAppear { resetDrafts() }
         .onChange(of: client.target) { _, _ in resetDrafts(); focused=nil; confirmAction=""; showConfirmation=false }
         .onChange(of: group) { _, _ in focused=nil }
+        .sheet(isPresented:$choosingGroup) {
+            WorkshopSectionSheet(selection:$group)
+        }
         .confirmationDialog("Apply disruptive vehicle changes?",isPresented: $showConfirmation,titleVisibility: .visible) {
             Button("Apply",role: .destructive) {
                 let action=confirmAction, args=confirmArgs, target=confirmTarget
@@ -225,5 +227,25 @@ struct WorkshopView: View {
     private func panel<Content:View>(_ title:String,@ViewBuilder content:()->Content) -> some View {
         VStack(alignment:.leading,spacing:14) { Text(title).font(.title3.bold()); content() }
             .frame(maxWidth:.infinity,alignment:.leading).padding(18).background(Color.white.opacity(0.045),in:RoundedRectangle(cornerRadius:18))
+    }
+}
+
+private struct WorkshopSectionSheet: View {
+    @Binding var selection: Int
+    @Environment(\.dismiss) private var dismiss
+    private let names=["Engine & protection","Handling & gearbox","World & recovery","Body · experimental","Presets & recovery"]
+    var body: some View {
+        NavigationStack {
+            List(names.indices,id:\.self) { index in
+                Button {
+                    selection=index; dismiss()
+                } label: {
+                    HStack { Text(names[index]); Spacer(); if selection==index { Image(systemName:"checkmark") } }
+                        .frame(minHeight:44).contentShape(Rectangle())
+                }.accessibilityIdentifier("workshopGroup\(index)")
+            }
+            .navigationTitle("Workshop sections")
+            .toolbar { ToolbarItem(placement:.cancellationAction) { Button("Done") { dismiss() } } }
+        }.presentationDetents([.medium,.large])
     }
 }
