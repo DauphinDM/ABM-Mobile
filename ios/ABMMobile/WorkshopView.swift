@@ -83,7 +83,7 @@ struct WorkshopView: View {
                 Slider(value: Binding(get: { min(300,max(50,value("power",100))) },set: { values["power"]=String(Int($0)) }),in:50...300,step:5)
                     .disabled(!ready || !supports("power")).accessibilityLabel("Power percent, slider 50 to 300")
                 action("Apply power","power",["value":.number(value("power",100)/100)],valid:valid("power",Double.leastNonzeroMagnitude...Double.greatestFiniteMagnitude,"100") && supports("power"))
-                action("Engine 100%","power",["value":.number(1)],valid:supports("power"))
+                action("Engine 100%","power",["value":.number(1)],valid:supports("power"),identifier:"restorePower")
                 Text("Numeric entry accepts any finite positive percentage. The PC rejects derived overflow. This isn't measured horsepower.").font(.footnote).foregroundStyle(.secondary)
                 Text(workshop["enginePower"].number.map { "Accepted power: \(($0*100).formatted())%" } ?? "Accepted power unavailable").font(.caption).foregroundStyle(.secondary)
                 if engines.count>1 {
@@ -116,7 +116,7 @@ struct WorkshopView: View {
                 number("Damage tolerance (0.1–100×)",key:"strength",fallback:"1",enabled:supports("engine"))
                 Toggle("Indestructible engine",isOn:$engineProtection).disabled(!ready || !supports("engine"))
                 action("Apply engine limits","engine",["engineStrength":.number(value("strength")),"engineIndestructible":.bool(engineProtection)],valid:supports("engine") && valid("strength",0.1...100))
-                action("Stock engine limits","engine",["engineStrength":.number(1),"engineIndestructible":.bool(false)],valid:supports("engine"))
+                action("Stock engine limits","engine",["engineStrength":.number(1),"engineIndestructible":.bool(false)],valid:supports("engine"),identifier:"stockEngineLimits")
                 Text("Strength doesn't change power or RPM. Protection blocks supported engine damage and hydrolocking and freezes engine heat. No repair or tire, mount, turbo, or drivetrain protection. OFF restores damage at the selected strength.").font(.footnote).foregroundStyle(.secondary)
                 Toggle("Deformation immunity",isOn:$beamProtection).disabled(!ready || !supports("deformation"))
                 action("Apply beam limits","deformation",["enabled":.bool(beamProtection)],valid:supports("deformation"))
@@ -165,7 +165,7 @@ struct WorkshopView: View {
         panel("World & recovery") {
             number("World gravity (−30 to 0 m/s²)",key:"gravity",fallback:"-9.81")
             let planets: [(String,Double)] = [("Earth",-9.81),("Moon",-1.62),("Mars",-3.71),("Venus",-8.87),("Jupiter",-24.92),("Pluto",-0.58),("Zero-g",0)]
-            ForEach(planets,id:\.0) { name, gravity in action(name,"gravity",["value":.number(gravity)]) }
+            ForEach(planets,id:\.0) { name, gravity in action(name,"gravity",["value":.number(gravity)],identifier:"gravity"+name) }
             action("Apply gravity","gravity",["value":.number(value("gravity",-9.81))],valid:valid("gravity",-30...0,"-9.81"))
             Text("Gravity affects the entire world, not just your vehicle.").font(.footnote).foregroundStyle(.secondary)
             action("Repair","repair",valid:supports("repair"),identifier:"repairVehicle")
