@@ -22,14 +22,16 @@ If needed, allow TCP 44445 only on the selected PC address and only on the trust
 | Screen | Available |
 | --- | --- |
 | Drive | Live speed, gear, RPM, fuel, temperature, and latency; local units toggle |
-| Workshop / Car | Power, RPM, clutch protection, gear ratios, repair, extinguish, stabilize, and clear ABM tuning |
+| Workshop / Car | Five groups: engine power/RPM/readback, durability and protection, handling and gearbox, gravity and recovery, experimental dimensions, PC preset save/apply/cancel, and reset persistence |
 | Garage | PC catalog, capped live thumbnails, spawn, and replacement |
 | Session | Players, copy names and addresses, owned-vehicle switching, and trip reset |
 | Connect | Pinned TLS, PC approval, remembered reconnect, Wi-Fi/USB, and status |
 
 Action buttons send directly, with no extra "Send to PC" confirmation. They still need a stopped, owned vehicle and server permission, and they pass through PC and game validation. You can spawn into a loaded empty map without an existing car. Replacing or tuning does need one. Use the keyboard **Done** action or swipe to dismiss it on iOS. Android also has a Done action while its keyboard is visible. A request receipt does not mean the game accepted the action. This app does not control steering or throttle.
 
-Not ported yet: QR scanning, preset-file management, profile and account lookup, dimension experiments, full handling and engine editors, calculators, launcher and setup, and desktop support export. There is no offline queue and no automatic preset application.
+The expanded Workshop needs the matching PC build with `remoteWorkshop.version: 2`. Older hosts keep supported engine, handling, and gearbox actions but disable new endpoints. See [Workshop coverage and remaining gaps](docs/workshop-parity.md).
+
+Not ported yet: QR scanning, preset-file management, profile and account lookup, calculators, launcher and setup, and desktop support export. There is no offline queue and no automatic preset application.
 
 ## USB mode (experimental)
 

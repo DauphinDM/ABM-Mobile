@@ -6,14 +6,11 @@ struct DashboardView: View {
     @StateObject private var updates=UpdateChecker()
     @State private var tab = 4
     @State private var metric = true
-    @State private var power = "100"
-    @State private var rpm = ""
-    @State private var ratios = ""
     @State private var model = ""
     @State private var configuration = ""
     @State private var device = "My iPhone"
     @State private var invitation = ""
-    private enum Field: Hashable { case power, rpm, ratios, device, invitation }
+    private enum Field: Hashable { case device, invitation }
     @FocusState private var focused: Field?
     private let columns = [GridItem(.adaptive(minimum: 145), spacing: 12)]
     private var telemetry: JSONValue { client.state["telemetry"] }
@@ -21,14 +18,14 @@ struct DashboardView: View {
     var body: some View {
         TabView(selection: $tab) {
             Tab("Drive", systemImage: "speedometer", value: 0) { page("Drive") { drive } }
-            Tab("Car", systemImage: "wrench.and.screwdriver", value: 1) { page("Workshop") { workshop } }
+            Tab("Car", systemImage: "wrench.and.screwdriver", value: 1) { page("Workshop") { WorkshopView(client:client) } }
             Tab("Garage", systemImage: "car.2", value: 2) { page("Garage") { garage } }
             Tab("Session", systemImage: "person.2", value: 3) { page("Session") { session } }
             Tab("Connect", systemImage: "link", value: 4) { page("Connect") { connect } }
         }
         .task { await updates.monitor() }
         .onChange(of: client.target) { _, _ in
-            focused = nil; power = "100"; rpm = ""; ratios = ""; configuration = ""; model = ""
+            focused = nil; configuration = ""; model = ""
         }
         .onChange(of: tab) { _, page in
             focused = nil
@@ -67,7 +64,7 @@ struct DashboardView: View {
                 ToolbarItem(placement: .topBarTrailing) { Text("ABM").font(.headline).foregroundStyle(.yellow).accessibilityLabel("ABM Mobile") }
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("Done") { focused = nil }.accessibilityIdentifier("dismissKeyboard")
+                    Button("Done") { focused = nil; UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),to:nil,from:nil,for:nil) }.accessibilityIdentifier("dismissKeyboard")
                 }
             }
         }
@@ -110,37 +107,6 @@ struct DashboardView: View {
         min(1, max(0, (telemetry["rpm"].number ?? 0) / max(100, telemetry["maxRPM"].number ?? 8000)))
     }
 
-    private var workshop: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text(client.canChange ? "Stopped, owned vehicle. Every request is checked again by the PC and game." : "Connect a live game and stop an owned vehicle on a permitted server to change settings.")
-                .font(.footnote).foregroundStyle(.secondary)
-            panel {
-                Text("Engine").font(.title3.bold())
-                TextField("Power percent (1–2000)", text: $power).keyboardType(.decimalPad).textFieldStyle(.roundedBorder).accessibilityLabel("Power percent")
-                    .focused($focused, equals: .power)
-                actionButton("Apply power", action: "power", args: ["value": .number((Double(power) ?? 0) / 100)], valid: validNumber(power, range: 1...2000) && client.state["capabilities"]["power"].flag)
-                TextField("Maximum RPM (100–30000)", text: $rpm).keyboardType(.numberPad).textFieldStyle(.roundedBorder).accessibilityLabel("Maximum RPM")
-                    .focused($focused, equals: .rpm)
-                actionButton("Apply RPM limit", action: "rpm", args: ["value": .number(Double(rpm) ?? 0)], valid: validNumber(rpm, range: 100...30000))
-                actionButton("Enable clutch protection", action: "clutch", args: ["enabled": .bool(true)])
-                actionButton("Disable clutch protection", action: "clutch", args: ["enabled": .bool(false)])
-            }
-            panel {
-                Text("Gearbox").font(.title3.bold())
-                Text("Forward ratios, separated by spaces. Transmission support and readback are enforced by the game.").font(.footnote).foregroundStyle(.secondary)
-                TextField("3.5 2.1 1.4 1.0 0.8", text: $ratios, axis: .vertical).textFieldStyle(.roundedBorder).accessibilityLabel("Forward gear ratios")
-                    .focused($focused, equals: .ratios)
-                actionButton("Apply ratios", action: "gears", args: ["ratios": .string(ratios)], valid: !ratios.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && ratios.utf8.count <= 24000)
-            }
-            panel {
-                Text("Vehicle actions").font(.title3.bold())
-                actionButton("Repair", action: "repair", identifier: "repairVehicle")
-                actionButton("Extinguish", action: "extinguish")
-                actionButton("Stabilize", action: "stability")
-                actionButton("Clear ABM tuning & reset", action: "fullReset")
-            }
-        }
-    }
 
     private var garage: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -266,9 +232,6 @@ struct DashboardView: View {
                 Text(unit).font(.caption).foregroundStyle(.secondary)
             }
         }
-    }
-    private func validNumber(_ text: String, range: ClosedRange<Double>) -> Bool {
-        guard let value = Double(text), value.isFinite else { return false }; return range.contains(value)
     }
     private func actionButton(_ title: String, action: String, args: [String: JSONValue] = [:], valid: Bool = true, identifier: String = "") -> some View {
         Button(title) { focused = nil; client.command(action, args: args, frozenTarget: client.target) }

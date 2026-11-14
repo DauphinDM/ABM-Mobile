@@ -14,6 +14,12 @@ final class AppTests: XCTestCase {
         }
         return app
     }
+    private func workshopGroup(_ name: String, app: XCUIApplication) {
+        let picker=app.buttons["workshopSection"]
+        for _ in 0..<5 where !picker.isHittable { app.swipeDown() }
+        XCTAssertTrue(picker.waitForExistence(timeout:5)); picker.tap()
+        app.buttons[name].tap()
+    }
     func testNativeTabsAndOfflineSafety() throws {
         let app = launch()
         XCTAssertTrue(app.buttons["pairPhone"].waitForExistence(timeout: 10))
@@ -26,6 +32,7 @@ final class AppTests: XCTestCase {
             image.lifetime = .keepAlways; add(image)
         }
         app.tabBars.buttons["Car"].tap()
+        workshopGroup("World & recovery",app:app)
         app.swipeUp()
         let repair = app.buttons["repairVehicle"]
         XCTAssertTrue(repair.exists)
@@ -53,7 +60,9 @@ final class AppTests: XCTestCase {
         app.tabBars.buttons["Car"].tap()
         XCTAssertTrue(app.navigationBars["Workshop"].waitForExistence(timeout: 5))
         let power = app.textFields["Power percent"]
-        XCTAssertTrue(power.waitForExistence(timeout: 5)); power.tap()
+        XCTAssertTrue(power.waitForExistence(timeout: 5))
+        for _ in 0..<3 where !power.isHittable { app.swipeUp() }
+        power.tap()
         XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 5), "Exercise the software keyboard, including its dismissal toolbar.")
         power.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 3) + "200")
         XCTAssertEqual(power.value as? String, "200")
@@ -62,6 +71,13 @@ final class AppTests: XCTestCase {
         XCTAssertFalse(app.keyboards.firstMatch.exists)
         app.buttons["power"].tap()
         XCTAssertFalse(app.buttons["confirmGameAction"].exists)
+        let strength=app.textFields["strengthInput"]
+        for _ in 0..<6 where !strength.isHittable { app.swipeUp() }
+        XCTAssertTrue(strength.waitForExistence(timeout:5)); strength.tap()
+        strength.typeText(XCUIKeyboardKey.delete.rawValue+"2")
+        app.buttons["dismissKeyboard"].firstMatch.tap()
+        app.buttons["engine"].tap()
+        workshopGroup("World & recovery",app:app)
         app.swipeUp()
         let repair = app.buttons["repairVehicle"]
         XCTAssertTrue(repair.waitForExistence(timeout: 5)); XCTAssertTrue(repair.isEnabled)

@@ -205,8 +205,10 @@ import ImageIO
         // merely because its scheduled watchdog callback has not run yet.
         checkFreshness(strict: true)
         let reads = ["catalog", "configs"]
-        let changes = ["power", "rpm", "clutch", "gears", "repair", "extinguish", "stability", "fullReset", "switch", "spawn", "replace", "resetTrip"]
-        guard let socket = connection, connected, canBrowse, reads.contains(action) || (changes.contains(action) && (action == "spawn" ? canSpawn : canChange)),
+        let changes = CompanionWire.workshopActions + ["switch", "spawn", "replace", "resetTrip"]
+        let stopping = ["presetCancel","dealerStop"].contains(action) && state["connected"].flag && state["controlsAvailable"].flag
+        guard let socket = connection, connected, CompanionWire.workshopAvailable(action,state: state),
+              stopping || (canBrowse && (reads.contains(action) || (changes.contains(action) && (action == "spawn" ? canSpawn : canChange)))),
               frozenTarget == nil || frozenTarget == target,
               let data = try? JSONEncoder().encode(JSONValue.object(args)), data.count <= 24000, sequence < 1_000_000_000 else {
             message = "Not connected, busy, blocked or game target changed. Nothing was queued."

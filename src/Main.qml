@@ -9,18 +9,16 @@ ApplicationWindow {
     property int page: 4
     onPageChanged: dismissKeyboard()
     property bool metric: true
+    readonly property var appRemote: remote
     readonly property var game: remote.state
     readonly property var telemetry: game.telemetry || ({})
     readonly property var workshop: game.workshop || ({})
     readonly property bool live: remote.connected && game.connected === true
-    readonly property bool stopped: typeof telemetry.speed === "number" && telemetry.speed <= 1
+    readonly property bool stopped: typeof telemetry.speed === "number" && isFinite(telemetry.speed) && telemetry.speed >= 0 && telemetry.speed <= 1
     readonly property bool canChange: live && !remote.busy && game.controlsAvailable === true && game.sandboxAllowed === true && game.vehicleOwned === true && !game.joining && !game.policyCleanup && stopped
     readonly property bool canSpawn: live && !remote.busy && game.controlsAvailable === true && game.sandboxAllowed === true && !game.joining && !game.policyCleanup && !!game.map && (typeof game.vehicleId === "undefined" || win.canChange)
     readonly property string identity: JSON.stringify(remote.target)
     onIdentityChanged: {
-        if (power) power.text = "100"
-        if (rpm) rpm.text = ""
-        if (ratios) ratios.text = ""
         selectedConfig = ""
     }
     property string selectedModel: ""
@@ -70,34 +68,7 @@ ApplicationWindow {
                     PlainLabel { Layout.fillWidth: true; text: qsTr("Telemetry comes from your PC. This is not a steering wheel or a throttle controller."); color: "#a0aabb"; font.pixelSize: 12 }
                 }
             }
-            ScrollView {
-                clip: true; contentWidth: availableWidth
-                ColumnLayout { width: parent.width; spacing: 12
-                    PlainLabel { Layout.fillWidth: true; color: "#a0aabb"; font.pixelSize: 13
-                        text: win.canChange ? qsTr("Stopped, owned vehicle. Every change is checked again by the PC and game.") : qsTr("Connect a live game and stop an owned vehicle on a permitted server to change settings.") }
-                    SectionPanel { Layout.fillWidth: true
-                        PlainLabel { text: qsTr("Engine power"); color: "#edf1f7"; font.pixelSize: 18 }
-                        TextField { id: power; objectName: "powerInput"; Layout.fillWidth: true; implicitHeight: 48; text: "100"; placeholderText: qsTr("Power percent"); inputMethodHints: Qt.ImhFormattedNumbersOnly; validator: DoubleValidator { bottom: 1; top: 2000; locale: "C" } }
-                        Button { objectName: "applyPower"; Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Apply power %"); enabled: win.canChange && power.acceptableInput && (win.game.capabilities || {}).power === true; onClicked: win.request("power", {value:Number(power.text)/100}, qsTr("Change engine power?")) }
-                        TextField { id: rpm; Layout.fillWidth: true; implicitHeight: 48; placeholderText: qsTr("Maximum RPM (100–30000)"); inputMethodHints: Qt.ImhDigitsOnly; validator: IntValidator { bottom: 100; top: 30000 } }
-                        Button { Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Apply RPM limit"); enabled: win.canChange && rpm.acceptableInput; onClicked: win.request("rpm",{value:Number(rpm.text)},qsTr("Change RPM limit?")) }
-                        Button { Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Enable clutch protection"); enabled: win.canChange; onClicked: win.request("clutch",{enabled:true},qsTr("Enable clutch protection?")) }
-                        Button { Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Disable clutch protection"); enabled: win.canChange; onClicked: win.request("clutch",{enabled:false},qsTr("Disable clutch protection?")) }
-                    }
-                    SectionPanel { Layout.fillWidth: true
-                        PlainLabel { text: qsTr("Gearbox"); color: "#edf1f7"; font.pixelSize: 18 }
-                        PlainLabel { Layout.fillWidth: true; text: qsTr("Forward ratios, separated by spaces. Readback and transmission support are enforced by the game."); color: "#a0aabb"; font.pixelSize: 12 }
-                        TextField { id: ratios; Layout.fillWidth: true; implicitHeight: 48; placeholderText: "3.5 2.1 1.4 1.0 0.8"; maximumLength: 24000 }
-                        Button { Layout.fillWidth: true; implicitHeight: 48; text: qsTr("Apply ratios"); enabled: win.canChange && ratios.text.trim().length > 0; onClicked: win.request("gears",{ratios:ratios.text},qsTr("Change gearbox ratios?")) }
-                    }
-                    SectionPanel { Layout.fillWidth: true
-                        PlainLabel { text: qsTr("Vehicle actions"); color: "#edf1f7"; font.pixelSize: 18 }
-                        Repeater { model: [{a:"repair",t:qsTr("Repair")},{a:"extinguish",t:qsTr("Extinguish")},{a:"stability",t:qsTr("Stabilize")},{a:"fullReset",t:qsTr("Clear ABM tuning & reset")}]
-                            Button { required property var modelData; Layout.fillWidth: true; implicitHeight: 48; text: modelData.t; enabled: win.canChange; onClicked: win.request(modelData.a,{},modelData.t+"?") }
-                        }
-                    }
-                }
-            }
+            WorkshopPane { remote: win.appRemote; canChange: win.canChange; onDismissKeyboard: win.dismissKeyboard() }
             ColumnLayout {
                 Layout.minimumWidth: 0; spacing: 12
                 RowLayout { Layout.fillWidth: true

@@ -5,6 +5,23 @@ import Security
 @testable import ABMMobile
 
 final class ProtocolTests: XCTestCase {
+    func testWorkshopLimitsSuggestionsAndHostCompatibility() {
+        XCTAssertNil(WorkshopRules.number("",range:0.1...100))
+        XCTAssertNil(WorkshopRules.number("nan",range:0.1...100))
+        XCTAssertNil(WorkshopRules.number("101",range:0.1...100))
+        XCTAssertEqual(WorkshopRules.number(" 0.1 ",range:0.1...100),0.1)
+        XCTAssertEqual(WorkshopRules.ratios("3.5, 2.1; 1.4 1"),[3.5,2.1,1.4,1])
+        for input in ["", "NaN", "3, 0", "3, 101", String(repeating:"1 ",count:13000)] { XCTAssertNil(WorkshopRules.ratios(input)) }
+        XCTAssertEqual(WorkshopRules.nextRatio("4, 2, 1"),0.5)
+        XCTAssertNil(WorkshopRules.nextRatio("1")); XCTAssertNil(WorkshopRules.nextRatio("1, 2"))
+        XCTAssertNil(WorkshopRules.rpmRange(.null))
+        let workshop: JSONValue = .object(["engines":.array([.object(["idleRPM":.number(800),"rpmCeiling":.number(7000)]),.object(["idleRPM":.number(1000),"rpmCeiling":.number(6500)])])])
+        XCTAssertEqual(WorkshopRules.rpmRange(workshop),1100...6500)
+        XCTAssertTrue(CompanionWire.workshopAvailable("engine",state:.null))
+        XCTAssertFalse(CompanionWire.workshopAvailable("dimensions",state:.null))
+        XCTAssertTrue(CompanionWire.workshopAvailable("dimensions",state:.object(["remoteWorkshop":.object(["version":.number(2)])])))
+        for name in ["engine","handling","persistence","gravity","deformation","dimensions","presetSave","presetApply","presetCancel"] { XCTAssertTrue(CompanionWire.workshopActions.contains(name)) }
+    }
     @MainActor func testUpdateChecksAreOptInAndReleaseLinksAreOfficial() throws {
         let suite="abm-update-test-"+UUID().uuidString
         let defaults=try XCTUnwrap(UserDefaults(suiteName: suite))

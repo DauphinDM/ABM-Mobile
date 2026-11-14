@@ -30,7 +30,7 @@ resources = root / "ios/ABMMobileUITests/Resources"
 resources.mkdir(exist_ok=True)
 (resources / "TestConfig.json").write_text(json.dumps({"invitation": link}))
 target = {"session": "ios-test", "vehicle": 42, "generation": "test-1", "map": "gridmap_v2", "server": "", "port": 0}
-state = {"connected": True, "controlsAvailable": True, "vehicleId": 42, "vehicleOwned": True, "sandboxAllowed": True, "map": "gridmap_v2", "vehicle": "Simulator fixture", "telemetry": {"speed": 0, "rpm": 900, "fuel": .5}, "capabilities": {"power": True}}
+state = {"connected": True, "controlsAvailable": True, "vehicleId": 42, "vehicleOwned": True, "sandboxAllowed": True, "map": "gridmap_v2", "vehicle": "Simulator fixture", "telemetry": {"speed": 0, "rpm": 900, "fuel": .5}, "capabilities": {"power": True, "engine": True, "repair": True}, "workshop": {"generation":"test-1"}, "remoteWorkshop":{"version":2}}
 snapshot = {"kind": "snapshot", "v": 1, "target": target, "state": state, "busy": False}
 photo = "c" * 64
 preview = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgsKCA0LCgsODg0PEyAVExISEyccHhcgLikxMC4pLSwzOko+MzZGNywtQFdBRkxOUlNSMj5aYVpQYEpRUk//2wBDAQ4ODhMREyYVFSZPNS01T09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT0//wAARCAAUACADASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFgEBAQEAAAAAAAAAAAAAAAAAAAUG/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8ArgGBVQAAAAAH/9k="
@@ -68,7 +68,7 @@ def handle(raw):
                         sequence += 1
                         assert value["kind"] == "command" and value["target"] == target and value["seq"] == sequence
                         action = value["action"]
-                        assert action == ["catalog", "configs", "spawn", "power", "repair"][sequence - 1]
+                        assert action == ["catalog", "configs", "spawn", "power", "engine", "repair"][sequence - 1]
                         log(f"command {sequence}: {action}")
                         if action == "catalog": library["catalog"] = [{"id": "testcar", "name": "Fixture car", "photo": photo}]
                         elif action == "configs":
@@ -76,6 +76,7 @@ def handle(raw):
                             library.update(configsModel="testcar", configs=[{"id": "testcar/base", "name": "Factory test", "photo": photo}])
                         elif action == "spawn": assert value["args"]["config"] == "testcar/base"
                         elif action == "power": assert value["args"]["value"] == 2
+                        elif action == "engine": assert value["args"] == {"engineStrength":2,"engineIndestructible":False}
                         elif action == "repair":
                             Path(os.environ.get("ABM_IOS_COMMAND_MARKER", str(folder / "command-ok"))).touch()
                             stale = True; log("repair accepted; periodic snapshots stopped")

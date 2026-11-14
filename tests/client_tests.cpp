@@ -136,7 +136,13 @@ private slots:
         auto *window=qobject_cast<QQuickWindow *>(engine.rootObjects().first()); QVERIFY(window);
         for (const auto &size:{QSize(320,600),QSize(412,860),QSize(800,600)}) {
             window->resize(size);
-            for (int page=0;page<5;++page) { window->setProperty("page",page); QTest::qWait(50); QVERIFY(!window->grabWindow().isNull()); }
+            for (int page=0;page<5;++page) {
+                window->setProperty("page",page); QTest::qWait(50); QVERIFY(!window->grabWindow().isNull());
+                if(page==1) {
+                    auto *section=window->findChild<QObject *>("workshopSection"); QVERIFY(section);
+                    for(int group=0;group<5;++group) { section->setProperty("currentIndex",group); QTest::qWait(20); QVERIFY(!window->grabWindow().isNull()); }
+                }
+            }
         }
         QVERIFY2(warnings.isEmpty(),qPrintable(warnings.join('\n')));
     }

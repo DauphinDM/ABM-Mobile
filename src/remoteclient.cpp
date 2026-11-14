@@ -145,7 +145,8 @@ void RemoteClient::receive() {
     }
 }
 bool RemoteClient::command(const QString &action, const QVariantMap &args) {
-    if (!connected() || busy() || QJsonDocument(QJsonObject::fromVariantMap(args)).toJson().size() > 24000) {
+    const bool stopping=QStringList{"presetCancel","dealerStop"}.contains(action);
+    if (!connected() || (busy() && !stopping) || QJsonDocument(QJsonObject::fromVariantMap(args)).toJson().size() > 24000) {
         m_message = tr("Not connected, stale, busy, or command too large. Nothing was queued."); emit changed(); return false;
     }
     send({{"kind","command"},{"seq",double(++m_sequence)},{"action",action},{"args",QJsonObject::fromVariantMap(args)},{"target",m_snapshot.value("target")}});

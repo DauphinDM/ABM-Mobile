@@ -91,6 +91,11 @@ struct LineDecoder {
 }
 
 enum CompanionWire {
+    static let workshopActions = ["power","rpm","clutch","persistence","handling","engine","gears","gravity","deformation","dimensions","repair","ignite","extinguish","deflate","stability","dealer","dealerStop","fullReset","presetSave","presetApply","presetCancel"]
+    static func workshopAvailable(_ action: String, state: JSONValue) -> Bool {
+        let extended = ["gravity","deformation","dimensions","ignite","deflate","dealer","presetSave","presetApply","presetCancel"]
+        return !extended.contains(action) || (state["remoteWorkshop"]["version"].number ?? 0) >= 2
+    }
     static func certificateMatches(_ data: Data, pin: String) -> Bool {
         Invitation.hex(pin) && SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined() == pin
     }
@@ -108,5 +113,36 @@ enum CompanionWire {
         let host = state["serverIp"].text
         guard !host.isEmpty, let port = state["serverPort"].number, port >= 1, port <= 65535, port.rounded() == port else { return "" }
         return "\(host.contains(":") ? "[\(host)]" : host):\(Int(port))"
+    }
+}
+
+enum WorkshopRules {
+    static func number(_ text: String, range: ClosedRange<Double>) -> Double? {
+        guard let value=Double(text.trimmingCharacters(in: .whitespacesAndNewlines)), value.isFinite, range.contains(value) else { return nil }
+        return value
+    }
+    static func ratios(_ text: String) -> [Double]? {
+        guard text.utf8.count <= 24000 else { return nil }
+        let pieces=text.components(separatedBy: CharacterSet(charactersIn: ",; \t\n\r")).filter { !$0.isEmpty }
+        let values=pieces.compactMap { number($0,range: 0.01...100) }
+        return !pieces.isEmpty && values.count==pieces.count ? values : nil
+    }
+    static func nextRatio(_ text: String) -> Double? {
+        guard let values=ratios(text), values.count>=2 else { return nil }
+        let factors=(max(1,values.count-3)..<values.count).compactMap { index -> Double? in
+            let value=values[index]/values[index-1]; return value>0 && value<1 ? value : nil
+        }.sorted()
+        guard !factors.isEmpty, let last=values.last else { return nil }
+        let middle=factors.count/2
+        let retention=factors.count%2==0 ? (factors[middle-1]+factors[middle])/2 : factors[middle]
+        let value=(last*retention*10000).rounded()/10000
+        return (0.01...100).contains(value) ? value : nil
+    }
+    static func rpmRange(_ workshop: JSONValue) -> ClosedRange<Double>? {
+        let engines=workshop["engines"].array
+        guard !engines.isEmpty else { return nil }
+        let low=engines.reduce(100.0) { max($0,($1["idleRPM"].number ?? 0)+100) }
+        let high=engines.reduce(30000.0) { min($0,$1["rpmCeiling"].number ?? 0) }
+        return high>=low ? low...high : nil
     }
 }

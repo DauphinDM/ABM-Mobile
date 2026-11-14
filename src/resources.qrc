@@ -1,6 +1,9 @@
 <RCC>
   <qresource prefix="/">
     <file>Main.qml</file>
+    <file>WorkshopPane.qml</file>
+    <file>WorkshopNumber.qml</file>
+    <file>CurveChart.qml</file>
     <file>UpdatesPane.qml</file>
     <file>PlainLabel.qml</file>
     <file>MetricCard.qml</file>
